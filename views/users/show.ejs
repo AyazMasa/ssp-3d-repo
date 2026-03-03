@@ -1,0 +1,30 @@
+<%- include('../layout') %>
+
+<div class="card" style="max-width:560px;">
+  <div class="card-header">
+    <h1>User Details</h1>
+    <div>
+      <a href="/users/<%= userRecord.id %>/edit" class="btn btn-sm btn-outline-primary">Edit</a>
+      <a href="/users" class="btn btn-sm btn-outline-primary">Back to List</a>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-label">ID</div>
+    <div class="detail-value"><%= userRecord.id %></div>
+
+    <div class="detail-label">Username</div>
+    <div class="detail-value"><strong><%= userRecord.username %></strong></div>
+
+    <div class="detail-label">Email</div>
+    <div class="detail-value"><a href="mailto:<%= userRecord.email %>"><%= userRecord.email %></a></div>
+
+    <div class="detail-label">Role</div>
+    <div class="detail-value"><span class="badge badge-<%= userRecord.role %>"><%= userRecord.role %></span></div>
+
+    <div class="detail-label">Created</div>
+    <div class="detail-value"><%= userRecord.created_at %></div>
+  </div>
+</div>
+
+<%- include('../footer') %>

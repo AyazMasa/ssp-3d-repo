@@ -1,0 +1,50 @@
+<%- include('layout') %>
+
+<div class="hero">
+  <h1>3D Schematics Repository</h1>
+  <p>A centralized portal for managing and sharing 3D schematic and model entries. Store, organize, and access your 3D models with ease.</p>
+  <div class="hero-actions">
+    <% if (user) { %>
+      <a href="/models" class="btn btn-primary btn-lg">Browse Models</a>
+      <a href="/models/new" class="btn btn-outline-primary btn-lg">Add New Model</a>
+    <% } else { %>
+      <a href="/register" class="btn btn-primary btn-lg">Get Started</a>
+      <a href="/login" class="btn btn-outline-primary btn-lg">Sign In</a>
+    <% } %>
+  </div>
+</div>
+
+<div class="feature-grid">
+  <div class="feature-card">
+    <div class="feature-icon">&#x1F4E6;</div>
+    <h3>Model Management</h3>
+    <p>Full CRUD operations for 3D model records. Add, view, edit, and delete entries with ease.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">&#x1F512;</div>
+    <h3>Secure Access</h3>
+    <p>Role-based authentication with session management. Admin and user roles with appropriate permissions.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">&#x1F4CA;</div>
+    <h3>XML/XSLT Reports</h3>
+    <p>Export model data to XML and transform it into styled HTML reports using XSLT technology.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">&#x2705;</div>
+    <h3>Data Validation</h3>
+    <p>Client-side and server-side validation ensures data integrity and prevents invalid entries.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">&#x1F465;</div>
+    <h3>User Management</h3>
+    <p>Admin panel for managing user accounts &mdash; create, update, and control access roles.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">&#x1F50D;</div>
+    <h3>Search &amp; Filter</h3>
+    <p>Quickly find models by ID, title, author, or category with built-in search functionality.</p>
+  </div>
+</div>
+
+<%- include('footer') %>

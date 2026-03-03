@@ -1,0 +1,49 @@
+<%- include('../layout') %>
+
+<div class="card" style="max-width:720px;">
+  <div class="card-header">
+    <h1>Model Details</h1>
+    <div>
+      <% if (user && (user.role === 'admin' || user.id === model.created_by)) { %>
+        <a href="/models/<%= model.id %>/edit" class="btn btn-sm btn-outline-primary">Edit</a>
+      <% } %>
+      <a href="/models" class="btn btn-sm btn-outline-primary">Back to List</a>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-label">Model ID</div>
+    <div class="detail-value"><code><%= model.model_id %></code></div>
+
+    <div class="detail-label">Title</div>
+    <div class="detail-value"><%= model.title %></div>
+
+    <div class="detail-label">Author</div>
+    <div class="detail-value"><%= model.author_name %></div>
+
+    <div class="detail-label">Email</div>
+    <div class="detail-value"><a href="mailto:<%= model.author_email %>"><%= model.author_email %></a></div>
+
+    <div class="detail-label">Category</div>
+    <div class="detail-value"><%= model.category %></div>
+
+    <div class="detail-label">Format</div>
+    <div class="detail-value"><%= model.format %></div>
+
+    <div class="detail-label">File Link</div>
+    <div class="detail-value"><a href="<%= model.file_link %>" target="_blank"><%= model.file_link %></a></div>
+
+    <div class="detail-label">Status</div>
+    <div class="detail-value"><span class="badge badge-<%= model.visibility_status.toLowerCase() %>"><%= model.visibility_status %></span></div>
+
+    <div class="detail-label">Created</div>
+    <div class="detail-value"><%= model.created_at %></div>
+
+    <% if (model.owner_name) { %>
+      <div class="detail-label">Added By</div>
+      <div class="detail-value"><%= model.owner_name %></div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../footer') %>
