@@ -4,17 +4,17 @@
 **Student:** Ayaz Masa  
 **Student ID:** 20233943  
 **Date:** 8th April  
-**Weight:** 10% of course grade
+**Weight:** 10% of course grade  
+**Live URL:** https://ssp-3d-repo.onrender.com
 
 ---
 
 ## Slide 1: Title Slide
 
-### 3D Models Repository Portal
+### SSP – 3D Schematics Repository Portal
 #### Presentation 2: Data Validation & Flow Management
 
 - **Course:** Internet Technologies
-- **Semester:** Current
 - **Student:** Ayaz Masa (ID: 20233943)
 - **Presentation Date:** 8th April
 - **Focus:** Functional Requirements FR3 & FR4
@@ -26,53 +26,74 @@
 ### Requirement: Implement client-side and server-side validation
 
 ### Why Both Layers?
-- **Client-side:** Immediate user feedback, better UX
-- **Server-side:** Security, data integrity (cannot be bypassed)
+- **Client-side:** Immediate user feedback, better UX, fewer server round-trips
+- **Server-side:** Security, data integrity (cannot be bypassed by disabling JS)
 
 ### Validation Strategy
 ```
-User Input 
+User Input
     ↓
-[Client-side checks] 
+[Client-side JS checks (validation.js)]
     ↓ Pass
 [Send to server]
     ↓
-[Server-side checks]
+[Server-side checks (route handler)]
     ↓ Pass
 [Store in database]
 ```
 
+### Forms That Have Validation
+1. **Login** form – username/password required
+2. **Register** form – username, email, password, confirm password
+3. **Model Create/Edit** – Model ID pattern, all fields, email
+4. **Contact** form – name, email, subject, message
+5. **User Create/Edit** (admin) – username, email, role, password
+
 ---
 
-## Slide 3: FR3 – Client-Side Validation
+## Slide 3: FR3 – Client-Side Validation (`public/js/validation.js`)
 
-### JavaScript-Based Validation
+### Dedicated Validation Script
 
-#### Required Fields
-- All form fields marked with `*` are required
-- Browser's HTML5 `required` attribute enforces this
-- User cannot submit empty form
+All client-side validation is centralized in `public/js/validation.js`, which attaches to forms by their `action` attribute on page load.
 
-#### Email Format Validation
-- Pattern: `user@domain.com`
-- Uses HTML5 `type="email"` attribute
-- Browser validates format before submission
+#### Login Form Validation
+```javascript
+if (action === "/login") {
+  if (!fd.get("username") || !fd.get("password")) {
+    alert("Please enter username and password.");
+    return; // prevents submission
+  }
+}
+```
 
-#### Model ID Format
-- Text input with pattern enforcement
-- Examples: `MDL-0001`, `MODEL-001`, etc.
-- Prevents invalid patterns
+#### Register Form Validation
+- Username: minimum 3 characters
+- Email: regex pattern `^[^\s@]+@[^\s@]+\.[^\s@]+$`
+- Password: minimum 6 characters
+- Confirm password: must match password field
 
-### Visual Feedback
-- Red error messages on validation failure
-- Form is NOT submitted if validation fails
-- Clear, user-friendly error messages
+#### Model Form Validation
+- Model ID: must match pattern `MDL-XXXX` (e.g., `MDL-0001`)
+- Author email: regex validation
+- All required fields enforced
+
+#### Contact Form Validation
+- All fields required (name, email, subject, message)
+- Email format validated
+- **Allows Formspree submission** (form action to external URL)
+
+#### Admin User Forms
+- Username: min 3 chars
+- Email: regex validated
+- New user: password required (min 6 chars)
+- Edit user: password optional (only update if provided)
 
 ### Screenshot Placeholder: Client-Side Validation
 ```
-[SCREENSHOT: Form with required field empty, show validation message]
-[SCREENSHOT: Invalid email format, show validation error]
-[SCREENSHOT: Form with all fields filled correctly]
+[SCREENSHOT: Register form showing "Passwords do not match" alert]
+[SCREENSHOT: Model form showing "Model ID must match MDL-XXXX" alert]
+[SCREENSHOT: Contact form validation preventing empty submission]
 ```
 
 ---
@@ -81,177 +102,218 @@ User Input
 
 ### Server-Side Checks (Cannot Be Bypassed)
 
-#### Required Field Verification
+#### Registration Validation (`routes/auth.js`)
 ```javascript
-if (!model_id || !title || !author_name || !author_email 
-    || !category || !format || !file_link) {
-  return error("Please fill all required fields.");
-}
+if (!username || !email || !password || !confirmPassword)
+  return res.render("register", { error: "All fields are required.", old: req.body });
+if (password.length < 6)
+  return res.render("register", { error: "Password must be at least 6 characters.", old: req.body });
+if (password !== confirmPassword)
+  return res.render("register", { error: "Passwords do not match.", old: req.body });
+// Also checks: duplicate username, duplicate email
 ```
 
-#### Email Format Validation
+#### Model Validation (`routes/models.js`)
 ```javascript
+if (!model_id || !title || !author_name || !author_email || !category || !format || !file_link)
+  return res.render("models/new", { error: "Please fill all required fields.", old: req.body });
 const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(author_email);
-if (!emailOk) {
-  return error("Invalid email format.");
-}
+if (!emailOk)
+  return res.render("models/new", { error: "Invalid email format.", old: req.body });
+// Duplicate Model ID check on create
 ```
 
-#### Duplicate Model ID Check
+#### User Management Validation (`routes/users.js`)
 ```javascript
-const existing = await get("SELECT id FROM models WHERE model_id = ?", [model_id]);
-if (existing) {
-  return error("Model ID already exists.");
-}
+// Admin creating/editing users: checks duplicate username, duplicate email,
+// password requirements, valid role ('admin' or 'user')
 ```
 
-### Error Handling
-- Validation failures show form with previous data (`old: req.body`)
-- User can correct and resubmit
-- Failed submissions do NOT save to database
+### Error Handling Pattern
+- All validation failures **re-render the form** with `old: req.body`
+- User's input is preserved so they can fix and resubmit
+- Clear error messages via `error` variable displayed in template
+- Failed submissions **never** reach the database
 
 ### Screenshot Placeholder: Server-Side Validation
 ```
-[SCREENSHOT: Form submission with missing required field]
-[SCREENSHOT: Server error message about duplicate Model ID]
-[SCREENSHOT: Invalid email error on server]
-[SCREENSHOT: Form re-rendered with user data for correction]
+[SCREENSHOT: Register with duplicate username error]
+[SCREENSHOT: Model form with "Model ID already exists" error]
+[SCREENSHOT: Form re-rendered with previous data preserved]
 ```
 
 ---
 
-## Slide 5: FR4 – Flow Management (Routing)
+## Slide 5: FR4 – Flow Management (Routing Architecture)
 
-### Express Routing Architecture
+### Express Routing – 4 Route Modules + Middleware
 
-#### Public Routes (`/home`, `/about`, `/contact`)
-- No authentication required
-- Accessible to any visitor
-- Displayed in navbar for all users
+#### Route Files
+| File | Purpose | Auth Required |
+|------|---------|---------------|
+| `routes/public.js` | Home, About, Contact | No |
+| `routes/auth.js` | Login, Register, Logout | No |
+| `routes/models.js` | Model CRUD | `requireLogin` |
+| `routes/users.js` | User CRUD | `requireAdmin` |
+| `routes/report.js` | XML/XSLT report | `requireLogin` |
 
-#### Protected Routes (all `/models` routes)
-- Require login via session
-- `requireLogin` middleware checks `req.session.user`
-- Redirect to `/login` if not authenticated
-
-#### Authorization Pattern
+#### Centralized Middleware (`routes/middleware.js`)
 ```javascript
 function requireLogin(req, res, next) {
   if (!req.session.user) return res.redirect("/login");
   next();
 }
+function requireAdmin(req, res, next) {
+  if (!req.session.user) return res.redirect("/login");
+  if (req.session.user.role !== "admin") {
+    req.session.flash = "Admin access required.";
+    return res.redirect("/home");
+  }
+  next();
+}
 ```
 
-### Complete Route List
+### Complete Route Map (20+ endpoints)
+
+**Public:**
 - `GET /` → redirect to `/home`
-- `GET /home`, `/about`, `/contact` → Public pages
-- `GET /login` → Login form
-- `POST /login` → Authenticate user
-- `GET /logout` → Clear session
-- `GET /models` → List (protected)
-- `GET /models/new` → Add form (protected)
-- `POST /models/new` → Create (protected)
-- `GET /models/:id` → View (protected)
-- `GET /models/:id/edit` → Edit form (protected)
-- `POST /models/:id/edit` → Update (protected)
-- `POST /models/:id/delete` → Delete (protected)
-- `GET /report` → XML/XSLT report (protected)
+- `GET /home`, `/about`, `/contact`
+- `GET /login`, `POST /login`, `GET /register`, `POST /register`, `GET /logout`
+- `GET /healthz` → health check for Render.com
 
-### Screenshot Placeholder: Navigation Flow
+**Protected (requireLogin):**
+- `GET /models` → List models (with search)
+- `GET /models/new`, `POST /models/new` → Create model
+- `GET /models/:id` → View model details
+- `GET /models/:id/edit`, `POST /models/:id/edit` → Edit (owner/admin only)
+- `POST /models/:id/delete` → Delete (owner/admin only)
+- `GET /report`, `/report/html`, `/report/xml` → Report pages
+
+**Admin Only (requireAdmin):**
+- `GET /users` → List users
+- `GET /users/new`, `POST /users/new` → Create user
+- `GET /users/:id` → View user
+- `GET /users/:id/edit`, `POST /users/:id/edit` → Edit user
+- `POST /users/:id/delete` → Delete user
+
+### Screenshot Placeholder
 ```
-[SCREENSHOT: Public navbar (not logged in)]
-[SCREENSHOT: Protected navbar (after login)]
-[SCREENSHOT: Redirect to login when accessing /models without auth]
-[SCREENSHOT: Route flow diagram]
+[SCREENSHOT: Public navbar (guest)]
+[SCREENSHOT: Navbar (logged-in user)]
+[SCREENSHOT: Navbar (admin – with Users link)]
+[SCREENSHOT: Redirect to /login when accessing /models without auth]
 ```
 
 ---
 
-## Slide 6: FR4 – Template Rendering (EJS)
+## Slide 6: FR4 – Template Rendering (EJS Partials)
 
 ### Template Engine: Embedded JavaScript (EJS)
 
-#### Master Layout (`views/layout.ejs`)
-- Shared HTML structure
-- Navigation bar (Links, Login/Logout)
-- Session message display
-- CSS styling from `public/css/style.css`
+#### Layout + Footer Partials
+The app uses **two shared partials** that wrap every page:
+- `views/layout.ejs` – Opens HTML, head, header navbar, flash messages, `<main>`
+- `views/footer.ejs` – Closes `</main>`, adds footer, loads `validation.js`, closes `</body></html>`
 
-#### Child Templates
-- Use `<%- include("../layout", { title, body: \`...\` }) %>`
-- Pass data to layout
-- Dynamic content rendering
+Every page includes them:
+```html
+<%- include("layout", { title: "Page Title" }) %>
+  <!-- Page-specific content here -->
+<%- include("footer") %>
+```
 
-### View Files
+#### View File Structure
 ```
 views/
-  ├── layout.ejs           (Master template)
-  ├── home.ejs             (Home page)
-  ├── about.ejs            (About page)
-  ├── contact.ejs          (Contact form)
+  ├── layout.ejs           (Header partial: nav, flash messages)
+  ├── footer.ejs           (Footer partial: scripts, closing tags)
+  ├── home.ejs             (Hero section + feature grid)
+  ├── about.ejs            (Description + technology table)
+  ├── contact.ejs          (Formspree contact form)
   ├── login.ejs            (Login form)
+  ├── register.ejs         (Registration form)
+  ├── 404.ejs              (Not Found page)
+  ├── report.ejs           (Report with iframe)
   ├── models/
-  │   ├── index.ejs        (List view)
+  │   ├── index.ejs        (List + search)
   │   ├── new.ejs          (Create form)
-  │   ├── view.ejs         (Detail view)
+  │   ├── view.ejs         (Detail view + owner info)
   │   └── edit.ejs         (Edit form)
-  └── report.ejs           (Report placeholder)
+  └── users/
+      ├── index.ejs        (User list table)
+      ├── new.ejs          (Create user form)
+      ├── show.ejs         (User detail view)
+      └── edit.ejs         (Edit user form)
 ```
 
-### Dynamic Data Binding
+#### Dynamic Data Binding
 ```javascript
-res.render("models/index", { 
-  title: "Models", 
-  models: [...],          // Loop in template
-  search: queryParam       // Display in form
+// Layout receives user info + flash messages from app-level middleware
+app.use((req, res, next) => {
+  res.locals.user = req.session.user || null;
+  const flash = req.session.flash;
+  delete req.session.flash;
+  res.locals.flash = flash || null;
+  next();
 });
 ```
 
-### Screenshot Placeholder: Template Rendering
+### Screenshot Placeholder
 ```
-[SCREENSHOT: Page showing shared navbar and layout]
-[SCREENSHOT: Different pages using same layout structure]
+[SCREENSHOT: Shared navbar across multiple pages]
+[SCREENSHOT: Flash message displayed after action]
 [SCREENSHOT: Form with prefilled data (edit scenario)]
 ```
 
 ---
 
-## Slide 7: FR4 – Redirects & User Feedback
+## Slide 7: FR4 – Redirects, Flash Messages & PRG Pattern
 
-### Post-Action Redirects (PRG Pattern)
+### Post-Redirect-Get (PRG) Pattern
+
+Every write operation follows the PRG pattern to prevent duplicate submissions:
 
 #### Create Model
 ```javascript
-await run("INSERT INTO models...", [...]);
-req.session.message = "Model added successfully.";
-res.redirect("/models");  // Redirect, flash message shown
-```
-
-#### Update Model
-```javascript
-await run("UPDATE models...", [...]);
-req.session.message = "Model updated.";
+await run("INSERT INTO models (..., created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  [...values, req.session.user.id]);
+req.session.flash = "Model added successfully.";
 res.redirect("/models");
 ```
 
-#### Delete Model
+#### Update Model (with ownership check)
 ```javascript
-await run("DELETE FROM models...", [req.params.id]);
-req.session.message = "Model deleted.";
+if (model.created_by !== req.session.user.id && req.session.user.role !== "admin") {
+  req.session.flash = "You can only edit your own models.";
+  return res.redirect("/models");
+}
+await run("UPDATE models SET ... WHERE id = ?", [...]);
+req.session.flash = "Model updated.";
+res.redirect("/models/" + req.params.id);
+```
+
+#### Delete Model (with ownership check)
+```javascript
+if (model.created_by !== req.session.user.id && req.session.user.role !== "admin") {
+  req.session.flash = "You can only delete your own models.";
+  return res.redirect("/models");
+}
+await run("DELETE FROM models WHERE id = ?", [req.params.id]);
+req.session.flash = "Model deleted.";
 res.redirect("/models");
 ```
 
-### Flash Messages
-- Store in session: `req.session.message`
-- Display in layout once
-- Auto-clear after render: `delete req.session.message`
+### Flash Message System
+- Stored in `req.session.flash` (not a separate library)
+- Middleware copies to `res.locals.flash` and deletes from session
+- Layout template displays once and it auto-clears
+- Used for success messages, permission errors, auth feedback
 
-### Screenshot Placeholder: User Feedback
+### Screenshot Placeholder
 ```
-[SCREENSHOT: Green success message after add]
-[SCREENSHOT: "Model updated" message]
-[SCREENSHOT: Confirmation dialog before delete]
-[SCREENSHOT: "Model deleted" message]
+[SCREENSHOT: "Model added successfully" flash message]
+[SCREENSHOT: "You can only edit your own models" error flash]
+[SCREENSHOT: Delete confirmation dialog]
 ```
 
 ---
@@ -259,39 +321,24 @@ res.redirect("/models");
 ## Slide 8: Summary – FR3 & FR4 Completion
 
 ### FR3 Requirements – ✅ Completed
-- ✅ Client-side validation (HTML5 + JavaScript)
-- ✅ Email format validation
-- ✅ Required field validation
-- ✅ Server-side validation for security
-- ✅ Duplicate Model ID rejection
-- ✅ Error messages with form data retention
+- ✅ Centralized client-side validation (`public/js/validation.js`)
+- ✅ 5 form types validated: Login, Register, Model, Contact, User
+- ✅ Email format regex validation (client + server)
+- ✅ Model ID pattern validation (`MDL-XXXX`)
+- ✅ Password matching & strength checks
+- ✅ Server-side validation on all POST routes
+- ✅ Duplicate rejection (Model ID, Username, Email)
+- ✅ Error messages with form data retention (`old: req.body`)
 
 ### FR4 Requirements – ✅ Completed
-- ✅ Express routing architecture
-- ✅ EJS template rendering
-- ✅ Master layout with shared UI
-- ✅ Child templates for content
-- ✅ Data binding and dynamic content
-- ✅ Clean navigation flow
-- ✅ PRG (Post-Redirect-Get) pattern
-- ✅ Session-based flash messages
-- ✅ User feedback on all operations
-
-### Quality Achieved
-- Data integrity through validation
-- User-friendly error messages
-- Smooth navigation experience
-- Session protection
-- Consistent UI across all pages
+- ✅ Modular Express routing (5 route files + middleware)
+- ✅ EJS partial-based template rendering (layout + footer)
+- ✅ 15 view templates organized by feature
+- ✅ Role-aware navigation (guest / user / admin)
+- ✅ PRG pattern for all write operations
+- ✅ Flash message system (no extra library)
+- ✅ Centralized auth middleware (`requireLogin`, `requireAdmin`)
+- ✅ 20+ route endpoints covering all features
+- ✅ 404 handler for undefined routes
 
 ---
-
-## Notes for Presenter
-
-- Demonstrate form validation by attempting invalid inputs
-- Show error messages and how form data is retained
-- Walk through the routing flow (public vs. protected routes)
-- Explain the redirect pattern and why it prevents duplicate submissions
-- Show flash messages appearing after operations
-- Discuss security benefits of server-side validation
-- Mention auto-clearing of flash messages

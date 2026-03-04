@@ -21,9 +21,14 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use(
   session({
     store: new SQLiteStore({ db: "sessions.sqlite", dir: path.join(__dirname, "db") }),
-    secret: "change-this-secret",
+    secret: process.env.SESSION_SECRET || "change-this-secret",
     resave: false,
     saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production" && false,   // set true only if using HTTPS proxy
+      httpOnly: true,
+      maxAge: 1000 * 60 * 60 * 24,  // 24 hours
+    },
   })
 );
 

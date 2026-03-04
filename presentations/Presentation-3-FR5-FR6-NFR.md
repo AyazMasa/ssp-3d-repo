@@ -4,142 +4,199 @@
 **Student:** Ayaz Masa  
 **Student ID:** 20233943  
 **Date:** 13th May  
-**Weight:** 20% of course grade
+**Weight:** 20% of course grade  
+**Live URL:** https://ssp-3d-repo.onrender.com
 
 ---
 
 ## Slide 1: Title Slide
 
-### 3D Models Repository Portal
+### SSP – 3D Schematics Repository Portal
 #### Presentation 3: Session Management, XML/XSLT, & Quality Requirements
 
 - **Course:** Internet Technologies
-- **Semester:** Current
 - **Student:** Ayaz Masa (ID: 20233943)
 - **Presentation Date:** 13th May
 - **Focus:** FR5 & FR6 + Non-Functional Requirements (NFR)
 
 ---
 
-## Slide 2: FR5 Overview – Session Management
+## Slide 2: FR5 Overview – Session Management & Authentication
 
 ### Requirement: Implement secure session-based access control
 
-### What is Session Management?
-- Maintains user state across multiple requests
-- Stores authentication information
-- Protects sensitive routes from unauthorized access
-- Uses cookies (secure, httpOnly by default)
+### Authentication System
+- **Public registration** – anyone can create an account
+- **bcryptjs** password hashing (cost factor 10)
+- **Role-based access** – two roles: `admin` and `user`
+- **express-session** with SQLite session store
+- **Environment-based secret** – `SESSION_SECRET` from env vars
 
-### Session Implementation
+### Session Flow
 ```
-User Login
+Register / Login
     ↓
-[Create session] → req.session.user = { username: "admin" }
+[Verify credentials (bcrypt.compare)]
     ↓
-[Store session cookie in browser]
+[Create session] → req.session.user = { id, username, role }
     ↓
-[Protected resources now accessible]
+[Store session in SQLite (connect-sqlite3)]
     ↓
-User Logout
+[Session cookie sent to browser (httpOnly, 24h)]
     ↓
-[Destroy session] → req.session.destroy()
+[Protected routes accessible based on role]
     ↓
-[No longer authenticated]
+Logout → req.session.destroy()
 ```
 
 ---
 
-## Slide 3: FR5 – Login & Logout
+## Slide 3: FR5 – Registration & Login
+
+### Registration Page (`/register`)
+- Public access – any visitor can register
+- Fields: Username, Email, Password, Confirm Password
+- **Client-side validation:** Min lengths, password matching, email format
+- **Server-side validation:** Duplicate username/email, password length ≥ 6
+- Password stored as **bcrypt hash** (never plaintext)
+- New users get role `user` by default
 
 ### Login Page (`/login`)
 - Username and password input
-- Form validation before submission
-- Test credentials: `admin` / `admin123`
-- Error message on invalid credentials
+- **bcrypt.compare()** verifies password against stored hash
+- Session stores: `{ id, username, role }`
+- Flash message: "Welcome back, {username}!"
 
-### Login Route
+### Login Route (Actual Implementation)
 ```javascript
-router.post("/login", (req, res) => {
+router.post("/login", async (req, res) => {
   const { username, password } = req.body;
-  if (username === "admin" && password === "admin123") {
-    req.session.user = { username };
-    req.session.message = "Logged in successfully.";
-    return res.redirect("/models");
+  const user = await get("SELECT * FROM users WHERE username = ?", [username]);
+  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    return res.render("login", { error: "Invalid username or password." });
   }
-  return res.render("login", { 
-    error: "Invalid credentials." 
-  });
+  req.session.user = { id: user.id, username: user.username, role: user.role };
+  req.session.flash = `Welcome back, ${user.username}!`;
+  res.redirect("/models");
 });
 ```
 
 ### Logout Route
 ```javascript
 router.get("/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.redirect("/home");
-  });
+  req.session.destroy(() => res.redirect("/home"));
 });
 ```
 
-### Screenshot Placeholder: Login/Logout
+### Screenshot Placeholder
 ```
-[SCREENSHOT: Login form with test credentials displayed]
-[SCREENSHOT: Error message on invalid login]
-[SCREENSHOT: Navbar showing logged-in user]
-[SCREENSHOT: Logout link in navbar]
-[SCREENSHOT: Redirect to home after logout]
+[SCREENSHOT: Registration form]
+[SCREENSHOT: Login form]
+[SCREENSHOT: "Welcome back, admin!" flash message after login]
+[SCREENSHOT: Error on invalid credentials]
 ```
 
 ---
 
-## Slide 4: FR5 – Protected Routes & Flash Messages
+## Slide 4: FR5 – Role-Based Access Control
 
-### Middleware: `requireLogin`
+### Two Middleware Functions (`routes/middleware.js`)
+
+#### `requireLogin` – Protects authenticated routes
 ```javascript
 function requireLogin(req, res, next) {
   if (!req.session.user) return res.redirect("/login");
   next();
 }
+```
+Applied to: `/models/*`, `/report/*`
 
-router.get("/models", requireLogin, async (req, res) => {
-  // Protected route
-});
+#### `requireAdmin` – Protects admin-only routes
+```javascript
+function requireAdmin(req, res, next) {
+  if (!req.session.user) return res.redirect("/login");
+  if (req.session.user.role !== "admin") {
+    req.session.flash = "Admin access required.";
+    return res.redirect("/home");
+  }
+  next();
+}
+```
+Applied to: `/users/*`
+
+### Ownership-Based Access on Models
+- Beyond role checks, models have **ownership enforcement**
+- `created_by` field tracks who created each model
+- Edit/Delete: only the owner or an admin can modify
+```javascript
+if (model.created_by !== req.session.user.id && req.session.user.role !== "admin") {
+  req.session.flash = "You can only edit your own models.";
+  return res.redirect("/models");
+}
 ```
 
-### Navbar Dynamic Content
-```html
-<% if (user) { %>
-  <span>Logged in as <%= user.username %></span>
-  <a href="/logout">Logout</a>
-<% } else { %>
-  <a href="/login">Login</a>
-<% } %>
+### Navbar Adapts to Role
+| Element | Guest | User | Admin |
+|---------|-------|------|-------|
+| Home, About, Contact | ✅ | ✅ | ✅ |
+| Register / Sign In | ✅ | — | — |
+| Models, Report | — | ✅ | ✅ |
+| Users (CRUD) | — | — | ✅ |
+| Role badge | — | `user` | `admin` |
+
+### Screenshot Placeholder
 ```
-
-### Flash Messages (Session Feedback)
-- Stored in: `req.session.message`
-- Displayed once per session
-- Auto-cleared: `delete req.session.message`
-- Shows on redirect to next page
-
-### Session Data Storage
-- **Driver:** SQLite (`connect-sqlite3`)
-- **Location:** `db/sessions.sqlite`
-- **Auto-created:** On first use
-- **Security:** Signed cookies prevent tampering
-
-### Screenshot Placeholder: Protected Routes & Messages
-```
-[SCREENSHOT: Redirect to login when accessing /models without auth]
-[SCREENSHOT: Navbar with "Logged in as admin"]
-[SCREENSHOT: Green success message after login]
-[SCREENSHOT: Flask message after model creation]
+[SCREENSHOT: Admin navbar with Users link and "admin" badge]
+[SCREENSHOT: Regular user navbar without Users link, "user" badge]
+[SCREENSHOT: Guest navbar with Register/Sign In]
+[SCREENSHOT: "Admin access required" flash when user tries /users]
 ```
 
 ---
 
-## Slide 5: FR6 – XML Export
+## Slide 5: FR5 – Session Configuration & Security
+
+### Session Store: SQLite
+```javascript
+const session = require("express-session");
+const SQLiteStore = require("connect-sqlite3")(session);
+
+app.use(session({
+  store: new SQLiteStore({ db: "sessions.sqlite", dir: "./db" }),
+  secret: process.env.SESSION_SECRET || "change-this-secret",
+  resave: false,
+  saveUninitialized: false,
+  cookie: { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 } // 24 hours
+}));
+```
+
+### Security Features
+- **`httpOnly: true`** – Cookie not accessible from JavaScript (prevents XSS theft)
+- **`maxAge: 24h`** – Sessions automatically expire
+- **Environment-based secret** – `SESSION_SECRET` env var on Render.com
+- **Stale session cleanup** – Middleware checks if user still exists in DB
+- **`saveUninitialized: false`** – No empty sessions created
+
+### Stale Session Cleanup
+```javascript
+app.use(async (req, res, next) => {
+  if (req.session.user) {
+    const exists = await get("SELECT id FROM users WHERE id = ?", [req.session.user.id]);
+    if (!exists) { req.session.destroy(); return res.redirect("/login"); }
+  }
+  next();
+});
+```
+
+### Screenshot Placeholder
+```
+[SCREENSHOT: Cookie in browser developer tools (httpOnly flag)]
+[SCREENSHOT: Session expires after 24h (login required again)]
+```
+
+---
+
+## Slide 6: FR6 – XML Export
 
 ### Requirement: Export model data to XML format
 
@@ -149,7 +206,7 @@ Database Query (SELECT * FROM models)
     ↓
 [Format each row as XML element]
     ↓
-[Escape special characters]
+[Escape special characters (& < > " ')]
     ↓
 [Wrap in root element with timestamp]
     ↓
@@ -181,39 +238,29 @@ Database Query (SELECT * FROM models)
 ```javascript
 function escapeXml(s) {
   return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
 }
 ```
 
 ### Route: `/report/xml`
 - Protected route (login required)
-- Generates XML from all models
-- Saves to `xml/models.xml`
-- Returns XML to browser
+- Generates XML from all models in database
+- Saves to `xml/models.xml` on disk
+- Returns `application/xml` content type
 
-### Screenshot Placeholder: XML Export
+### Screenshot Placeholder
 ```
 [SCREENSHOT: /report/xml showing XML in browser]
-[SCREENSHOT: Downloaded models.xml file]
-[SCREENSHOT: XML structure with sample data]
-[SCREENSHOT: File stored in xml/ folder]
+[SCREENSHOT: XML file structure]
 ```
 
 ---
 
-## Slide 6: FR6 – XSLT Transformation
+## Slide 7: FR6 – XSLT Transformation
 
 ### Requirement: Transform XML to HTML using XSLT
-
-### XSLT (Extensible Stylesheet Language Transformation)
-- W3C standard for XML transformations
-- Declarative language (XML-based)
-- Creates HTML from XML data
-- Used for reports, formatting, filtering
 
 ### Transformation Pipeline
 ```
@@ -221,174 +268,115 @@ XML (models.xml)
     ↓
 [Load XSLT stylesheet: models.xsl]
     ↓
-[Saxon-JS XSLT processor]
+[Saxon-JS XSLT 3.0 processor (server-side)]
     ↓
-[Apply transformation rules]
+[Pre-compiled SEF JSON (models.sef.json)]
     ↓
 [Generate HTML output]
     ↓
-[Display in browser]
+[Display in iframe on /report page]
 ```
 
-### XSLT Example (models.xsl)
-```xsl
-<xsl:for-each select="/models/model">
-  <tr>
-    <td><xsl:value-of select="model_id"/></td>
-    <td><xsl:value-of select="title"/></td>
-    <td><xsl:value-of select="author_name"/></td>
-    <!-- More columns -->
-  </tr>
-</xsl:for-each>
-```
+### Report Page Architecture
+- `/report` – Main page with iframe that loads `/report/html`
+- `/report/html` – Saxon-JS transforms XML → HTML (served inside iframe)
+- `/report/xml` – Raw XML download/view
 
-### Report Features
-- Styled HTML table
-- Model count total
-- Generation timestamp
-- Hyperlinked file links
-- Professional CSS styling
+### XSLT Stylesheet Features (`models.xsl`)
+- Loops through all `<model>` elements
+- Creates styled HTML table with all fields
+- Shows model count total
+- Displays generation timestamp
+- Hyperlinks file URLs
+- Professional CSS styling applied
 
 ### Technology Stack
-- **XSLT Processor:** Saxon-JS (pure JavaScript)
+- **XSLT Processor:** Saxon-JS 2.7.0 (pure JavaScript, server-side)
 - **XSLT Version:** 3.0
-- **Compilation:** SEF JSON file (models.sef.json)
-- **Performance:** Pre-compiled for speed
+- **Compilation:** SEF JSON format (pre-compiled for performance)
+- **No browser plugin required** – all processing on server
 
-### Route: `/report`
-- Protected route (login required)
-- Access via "Report" link in navbar
-- Displays formatted HTML table
-- Shows all models with metadata
-
-### Screenshot Placeholder: XSLT Report
+### Screenshot Placeholder
 ```
-[SCREENSHOT: /report showing formatted HTML table]
-[SCREENSHOT: Report header with "Total:" count]
-[SCREENSHOT: Generated timestamp]
-[SCREENSHOT: Table with all model data]
-[SCREENSHOT: Hyperlinked file links in report]
+[SCREENSHOT: /report page showing XSLT-transformed HTML table in iframe]
+[SCREENSHOT: Report header with model count and timestamp]
+[SCREENSHOT: Table with hyperlinked file links]
 ```
 
 ---
 
-## Slide 7: Non-Functional Requirements (Quality)
+## Slide 8: Non-Functional Requirements (Quality)
 
 ### NFR1 – Performance
-- ✅ **Fast data retrieval:** SQLite queries optimized with indexes
-- ✅ **Efficient rendering:** EJS templates pre-compiled
-- ✅ **XSLT optimization:** Pre-compiled SEF JSON format
-- ✅ **Asynchronous operations:** Async/await for non-blocking I/O
+- ✅ SQLite queries with parameterized statements
+- ✅ Pre-compiled XSLT (SEF JSON) for fast transformation
+- ✅ Async/await throughout (non-blocking I/O)
+- ✅ Static file serving from `public/` folder
 
 ### NFR2 – Security
-- ✅ **Session-based authentication:** Secure cookie storage
-- ✅ **SQL injection prevention:** Parameterized queries (? placeholders)
-- ✅ **XSS protection:** HTML escaping in templates
-- ✅ **XML injection prevention:** Character escaping in XML output
-- ✅ **Route protection:** Middleware enforces access control
+- ✅ **bcryptjs** password hashing (not plaintext)
+- ✅ **Session secret from environment variable** (not hardcoded)
+- ✅ **httpOnly cookies** (XSS protection)
+- ✅ **Parameterized SQL queries** (prevent injection)
+- ✅ **HTML escaping** in EJS templates (prevent XSS)
+- ✅ **XML character escaping** (prevent injection)
+- ✅ **Role-based + ownership-based access control**
+- ✅ **Stale session cleanup** (deleted users can't stay logged in)
 
 ### NFR3 – Usability
-- ✅ **Intuitive navigation:** Clear navbar with all main links
-- ✅ **Responsive design:** CSS flexbox layout
-- ✅ **Error handling:** User-friendly error messages
-- ✅ **Form feedback:** Required field indicators, prefilled forms
-- ✅ **Confirmation dialogs:** Prevent accidental deletions
+- ✅ Modern UI with CSS custom properties and responsive design
+- ✅ Hero section with contextual CTAs (guest vs. logged-in)
+- ✅ Role badges in navbar (visual role indicator)
+- ✅ Flash messages for all operations
+- ✅ Form data retention on validation errors
+- ✅ Search/filter on models list
+- ✅ Confirmation dialogs before destructive actions
 
 ### NFR4 – Maintainability
-- ✅ **Modular code structure:** Separate route/view files
-- ✅ **Database schema:** Clear, normalized table design
-- ✅ **Comments & documentation:** Code is well-commented
-- ✅ **Configuration:** Centralized app.js setup
-- ✅ **Version control:** Ready for Git repository
+- ✅ Modular route files (public, auth, models, users, report)
+- ✅ Centralized middleware (middleware.js)
+- ✅ EJS partial system (layout.ejs + footer.ejs)
+- ✅ Centralized validation (validation.js)
+- ✅ Database auto-migration on startup
+- ✅ Environment variable configuration
 
-### NFR5 – Scalability
-- ✅ **Database design:** Can handle growing model count
-- ✅ **Search functionality:** Indexed queries for fast filtering
-- ✅ **Session persistence:** SQLite sessions scalable
-- ✅ **Static file serving:** Separate public/ folder
-
-### NFR6 – Compatibility
-- ✅ **Browser support:** HTML5, modern JavaScript
-- ✅ **OS independent:** Cross-platform (Windows, Mac, Linux)
-- ✅ **Node.js version:** Tested on v24.13.1
+### NFR5 – Deployment & Availability
+- ✅ **Live on Render.com** – https://ssp-3d-repo.onrender.com
+- ✅ `/healthz` endpoint for uptime monitoring
+- ✅ `PORT` environment variable support
+- ✅ `.gitignore` for clean deployments
+- ✅ GitHub integration for auto-deploy
 
 ---
 
-## Slide 8: Complete Feature Summary + Bonus
+## Slide 9: Complete Feature Summary
 
 ### All Functional Requirements – ✅ Completed
 
 | Requirement | Status | Details |
 |-------------|--------|---------|
-| FR1: Public Pages | ✅ | Home, About, Contact pages |
-| FR2: CRUD Operations | ✅ | Create, Read, Update, Delete models |
-| FR3: Data Validation | ✅ | Client-side + Server-side validation |
-| FR4: Flow Management | ✅ | Routing, templates, redirects |
-| FR5: Session Management | ✅ | Login, logout, protected routes |
-| FR6: XML + XSLT | ✅ | Export to XML, transform to HTML report |
+| FR1: Public Pages | ✅ | Home (hero + features), About (tech table), Contact (Formspree) |
+| FR2: CRUD Operations | ✅ | Model CRUD (ownership) + User CRUD (admin) |
+| FR3: Data Validation | ✅ | Client-side (validation.js) + Server-side (all routes) |
+| FR4: Flow Management | ✅ | 5 route modules, EJS partials, PRG, flash messages |
+| FR5: Session Management | ✅ | bcrypt auth, registration, roles, middleware, SQLite sessions |
+| FR6: XML + XSLT | ✅ | XML export, Saxon-JS XSLT 3.0, report page with iframe |
 
-### Bonus Feature: Search Functionality
-- ✅ Server-side search on `/models?search=value`
-- ✅ Search by: Model ID, Title, Author Name, Category
-- ✅ SQL LIKE queries for flexible filtering
-- ✅ Search form with Reset button
+### Beyond Requirements
+- ✅ Public user registration (not just admin login)
+- ✅ Model ownership tracking with `created_by`
+- ✅ Working contact form via **Formspree** (real email delivery)
+- ✅ Modern professional UI (CSS custom properties, responsive)
+- ✅ Live production deployment on **Render.com**
+- ✅ Health check endpoint for monitoring
+- ✅ Admin user management (full CRUD)
+- ✅ Search/filter functionality on models
 
-### Non-Functional Requirements – ✅ Achieved
-- ✅ Performance optimizations
-- ✅ Security best practices
-- ✅ User-friendly interface
-- ✅ Maintainable code structure
-- ✅ Scalable database design
-- ✅ Cross-platform compatibility
-
-### Project Delivery
-- **Total Routes:** 13 functional endpoints
-- **Database Views:** 8 EJS templates
-- **Functionality:** 100% complete
-- **Quality:** Production-ready code
+### Project Statistics
+- **Total Routes:** 20+ endpoints across 5 route files
+- **Templates:** 15 EJS view files
+- **Database Tables:** 2 (models + users)
+- **Validation:** 5 form types covered (client + server)
+- **Deployment:** Live at https://ssp-3d-repo.onrender.com
 
 ---
-
-## Slide 9: Technical Highlights & Learning Outcomes
-
-### Technologies Demonstrated
-- Modern Node.js/Express backend development
-- Relational database design with SQLite
-- Secure session management
-- Advanced XML/XSLT processing
-- Server-side template rendering
-- Full-stack web application architecture
-
-### Security Best Practices Implemented
-- Parameterized SQL queries (prevent injection)
-- HTML escaping (prevent XSS)
-- Session-based authentication
-- Access control middleware
-- Secure cookie handling
-
-### Lessons Learned
-- Importance of server-side validation
-- Separation of concerns (routes, views, models)
-- User experience feedback (flash messages)
-- Data integrity through constraints
-- Professional error handling
-
-### Code Quality
-- Clean, readable code structure
-- Consistent naming conventions
-- Comprehensive error handling
-- Modular route/view organization
-- Documentation and comments
-
----
-
-## Notes for Presenter
-
-- Demonstrate the complete user journey (login → create → view → edit → report)
-- Show XML export and XSLT transformation live
-- Explain security measures when questioned
-- Discuss performance optimizations (pre-compiled XSLT)
-- Highlight search functionality as bonus feature
-- Show database schema and data integrity constraints
-- Explain the technology choices and their benefits
-- Be prepared to discuss scalability for future enhancements

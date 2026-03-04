@@ -4,17 +4,17 @@
 **Student:** Ayaz Masa  
 **Student ID:** 20233943  
 **Date:** 4th March  
-**Weight:** 10% of course grade
+**Weight:** 10% of course grade  
+**Live URL:** https://ssp-3d-repo.onrender.com
 
 ---
 
 ## Slide 1: Title Slide
 
-### 3D Models Repository Portal
-#### Progressive Web Application Development
+### SSP – 3D Schematics Repository Portal
+#### Presentation 1: Public Pages & CRUD Management
 
 - **Course:** Internet Technologies
-- **Semester:** Current
 - **Student:** Ayaz Masa (ID: 20233943)
 - **Presentation Date:** 4th March
 - **Focus:** Functional Requirements FR1 & FR2
@@ -23,19 +23,22 @@
 
 ## Slide 2: Project Overview
 
-### What is the 3D Models Repository Portal?
+### What is the SSP 3D Repository?
 
 A full-stack web application that:
-- Serves as a public repository for 3D models/schematics
-- Provides administrator CRUD functionality
-- Demonstrates modern web technologies (Node.js, Express, SQLite, XML, XSLT)
-- Implements session-based access control
+- Serves as a centralized repository for 3D models/schematics
+- Supports public registration and role-based access (admin & user)
+- Full CRUD for both **models** and **users**
+- Real email delivery via Formspree contact form
+- XML/XSLT report generation
+- Deployed live on Render.com
 
 ### Key Technologies
-- **Frontend:** HTML5, CSS3, JavaScript, EJS templates
+- **Frontend:** HTML5, CSS3 (custom properties, responsive), JavaScript, EJS
 - **Backend:** Node.js, Express.js
-- **Database:** SQLite
-- **Additional:** XML, XSLT (Saxon-JS)
+- **Database:** SQLite (with auto-migration)
+- **Auth:** bcryptjs, express-session
+- **Additional:** XML, XSLT (Saxon-JS), Formspree, Render.com
 
 ---
 
@@ -46,92 +49,124 @@ A full-stack web application that:
 **Implemented Pages:**
 
 1. **Home Page** (`/home`)
-   - Introduction to the platform
-   - Portal description
-   - Links to other sections
+   - Hero section with call-to-action buttons
+   - Feature grid showcasing system capabilities (6 cards)
+   - Dynamic CTAs: "Get Started / Sign In" (guest) vs "Browse Models / Add New" (logged in)
 
 2. **About Page** (`/about`)
-   - System description
-   - Technologies overview
-   - Features summary
+   - Detailed system description
+   - Feature cards (HTML5, JS, XML, Express, SQLite, Sessions)
+   - Technology table with all 9 dependencies explained
 
 3. **Contact Page** (`/contact`)
-   - User inquiry form interface
-   - Email and message input fields
-   - (UI demonstration)
+   - **Working contact form via Formspree** (sends real email notifications)
+   - Client-side validation before submission
+   - Fields: Name, Email, Subject, Message
+   - Hidden `_subject` field for email notifications
 
-### Screenshot Placeholder: Public Pages Navigation
+### Screenshot Placeholder: Public Pages
 ```
-[SCREENSHOT: Navbar showing Home, About, Contact, Models, Report links]
-[SCREENSHOT: Home page main content]
-[SCREENSHOT: About page content]
+[SCREENSHOT: Home page hero + feature grid]
+[SCREENSHOT: About page with technology table]
 [SCREENSHOT: Contact page form]
+[SCREENSHOT: Formspree email notification received]
 ```
 
 ---
 
 ## Slide 4: FR2 – Model Management (CRUD) - Part 1
 
-### Requirement: Create, Read, Update, Delete model records
+### Requirement: Full CRUD operations for model records
 
-#### Read – View All Models (`/models`)
-- Access restricted to authenticated users
-- Displays table of all models
-- Shows: Model ID, Title, Category, Format, Status, Created Date
-- Includes View/Edit/Delete action buttons
+#### List All Models (`/models`)
+- Authenticated access only
+- Table view with all fields
+- **Search bar** – filter by Model ID, Title, Author, Category
+- Action buttons: View, Edit, Delete (conditional on ownership)
 
-#### Read – View Single Model (`/models/:id`)
-- Detailed view of individual model
-- Displays all model information:
-  - Model ID, Title, Author (Name & Email)
-  - Category, Format, File Link
-  - Visibility Status, Created Timestamp
+#### View Model Details (`/models/:id`)
+- Full detail grid layout
+- Shows "Added By" (owner username)
+- Edit button visible only to owner or admin
+- Linked author email, file link
 
-### Screenshot Placeholder: View Operations
+### Ownership System
+- Every model tracks `created_by` (user ID of creator)
+- Regular users can only **Edit/Delete their own models**
+- Admins can edit/delete any model
+
+### Screenshot Placeholder: Read Operations
 ```
-[SCREENSHOT: Models list page with table]
-[SCREENSHOT: Single model detail view]
-[SCREENSHOT: Action links (View, Edit, Delete)]
+[SCREENSHOT: Models list page with search bar]
+[SCREENSHOT: Model detail view with "Added By"]
+[SCREENSHOT: Model list as regular user (no edit/delete on other users' models)]
 ```
 
 ---
 
 ## Slide 5: FR2 – Model Management (CRUD) - Part 2
 
-### Create – Add New Model (`/models/new`)
-- Form with required fields:
-  - Model ID (unique), Title, Author Name, Author Email
-  - Category, Format, File Link, Visibility Status
-- Form validation and error handling
-- Success message on creation
+### Create Model (`/models/new`)
+- Two-column form layout with required field indicators
+- Fields: Model ID, Title, Author Name/Email, Category, Format, File Link, Visibility
+- Client-side validation (pattern: `MDL-0001`, email format)
+- Server-side: duplicate Model ID rejection, email format check
+- `created_by` is set automatically to current user's ID
 
-### Update – Edit Model (`/models/:id/edit`)
-- Prefilled form with current model data
-- Model ID field is read-only (cannot change unique ID)
-- Validates all required fields before update
-- Success message on update
+### Edit Model (`/models/:id/edit`)
+- Pre-filled form with current data
+- Model ID is read-only
+- **Access restricted** to model owner or admin (server-side enforced)
 
-### Delete – Remove Model (`/models/:id/delete`)
+### Delete Model (`/models/:id/delete`)
 - Confirmation dialog before deletion
-- Removes record from database
-- Redirects to model list with success message
+- **Access restricted** to model owner or admin
+- Flash message on successful deletion
 
-### Screenshot Placeholder: Create/Edit/Delete Operations
+### Screenshot Placeholder: Create/Edit/Delete
 ```
-[SCREENSHOT: "Add New Model" form]
-[SCREENSHOT: "Edit Model" form with prefilled data]
+[SCREENSHOT: Add New Model form with validation]
+[SCREENSHOT: Edit Model form (pre-filled)]
 [SCREENSHOT: Delete confirmation dialog]
-[SCREENSHOT: Success message after CRUD operation]
+[SCREENSHOT: "Model added successfully" flash message]
 ```
 
 ---
 
-## Slide 6: Data Model & Database Schema
+## Slide 6: FR2 – User Management (CRUD, Admin Only)
 
-### Models Table Structure
+### Requirement: Full user record management
+
+This was added to satisfy the lecturer's requirement for **user management** beyond just admin login.
+
+#### User CRUD Routes (all require `requireAdmin` middleware)
+- `GET /users` – List all users (table: ID, Username, Email, Role, Created)
+- `GET /users/new` – Add user form (username, email, password, role)
+- `GET /users/:id` – View user details
+- `GET /users/:id/edit` – Edit user (username, email, role)
+- `POST /users/:id/delete` – Delete user (cannot delete yourself)
+
+#### Access Control
+- Only users with `role = 'admin'` can access `/users` routes
+- "Users" link in navbar only visible to admins
+- Server-side `requireAdmin` middleware enforces this
+
+### Screenshot Placeholder: User Management
+```
+[SCREENSHOT: Users list page (admin view)]
+[SCREENSHOT: Add User form with role selector]
+[SCREENSHOT: User detail view]
+[SCREENSHOT: 403/redirect when regular user tries /users]
+```
+
+---
+
+## Slide 7: Data Model & Database Schema
+
+### Models Table
 
 | Field | Type | Constraints |
-|-------|------|-------------|
+|---|---|---|
 | id | INTEGER | PRIMARY KEY, AUTOINCREMENT |
 | model_id | TEXT | NOT NULL, UNIQUE |
 | title | TEXT | NOT NULL |
@@ -141,61 +176,51 @@ A full-stack web application that:
 | format | TEXT | NOT NULL |
 | file_link | TEXT | NOT NULL |
 | visibility_status | TEXT | NOT NULL |
-| created_at | TEXT | DEFAULT (datetime('now')) |
+| created_by | INTEGER | FK → users(id) |
+| created_at | TEXT | DEFAULT datetime('now') |
 
-### Database File
-- **Location:** `db/database.sqlite`
-- **Init Script:** `db/init.sql`
-- **Auto-creation:** Schema created on first server startup
+### Users Table
 
----
+| Field | Type | Constraints |
+|---|---|---|
+| id | INTEGER | PRIMARY KEY, AUTOINCREMENT |
+| username | TEXT | NOT NULL, UNIQUE |
+| email | TEXT | NOT NULL, UNIQUE |
+| password_hash | TEXT | NOT NULL |
+| role | TEXT | NOT NULL, DEFAULT 'user' |
+| created_at | TEXT | DEFAULT datetime('now') |
 
-## Slide 7: Implementation Highlights - Routes & Views
-
-### Backend (Express Routes)
-- `GET /models` – List all models
-- `GET /models/new` – Show add form
-- `POST /models/new` – Create model
-- `GET /models/:id` – View single model
-- `GET /models/:id/edit` – Show edit form
-- `POST /models/:id/edit` – Update model
-- `POST /models/:id/delete` – Delete model
-
-### Frontend (EJS Templates)
-- `views/models/index.ejs` – List view
-- `views/models/new.ejs` – Create form
-- `views/models/view.ejs` – Detail view
-- `views/models/edit.ejs` – Edit form
-- `views/layout.ejs` – Master layout
-
-### Screenshot Placeholder: Navigation Flow
-```
-[SCREENSHOT: Navigation flow diagram or screenshots showing transitions between pages]
-```
+### Database Features
+- Auto-created on first startup
+- Auto-migration: adds `created_by` column if missing
+- Admin seeded via `node db/seedAdmin.js`
 
 ---
 
 ## Slide 8: Summary – FR1 & FR2 Completion
 
-### FR1 Requirements – ✅ Completed
-- ✅ Public home page with portal description
-- ✅ About page detailing technologies
-- ✅ Contact page with form UI
+### FR1 – Public Pages ✅
+- ✅ Home page with hero section and feature grid
+- ✅ About page with system description and technology table
+- ✅ Contact page with **working Formspree email delivery**
 
-### FR2 Requirements – ✅ Completed
-- ✅ List all models in database
-- ✅ View individual model details
-- ✅ Create new model with validation
-- ✅ Edit existing model
-- ✅ Delete model with confirmation
-- ✅ All CRUD operations fully functional
+### FR2 – Model CRUD ✅
+- ✅ List models with search and filtering
+- ✅ View model details with owner info
+- ✅ Create model with ownership tracking
+- ✅ Edit model (owner/admin only)
+- ✅ Delete model with confirmation (owner/admin only)
 
-### User Experience
-- Clean, intuitive navigation
-- Responsive layout
-- Clear action buttons
-- Success/error message feedback
-- Data integrity (unique Model ID constraint)
+### FR2 – User CRUD (Admin) ✅
+- ✅ List, view, create, edit, delete users
+- ✅ Admin-only access enforced by middleware
+- ✅ Role assignment (admin/user)
+
+### Beyond Requirements
+- Ownership-based access control on models
+- Working contact form (not just UI demo)
+- Modern UI with responsive design
+- Live deployment on Render.com
 
 ---
 
