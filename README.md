@@ -80,6 +80,8 @@ Schema is defined in `db/init.sql` and includes:
 
 Migrations run automatically (e.g. `created_by` column added on first launch if missing).
 
+**Auto-seeding:** On every startup, if the database is empty, the server automatically seeds the admin account and 4 sample models (`db/seedData.js`). This ensures the site always has content, even after Render.com's ephemeral filesystem wipes the database on sleep/restart.
+
 ---
 
 ## Implemented Features
@@ -163,7 +165,8 @@ package.json              # Dependencies and scripts
 db/
   db.js                   # Database connection + migrations
   init.sql                # Schema definitions
-  seedAdmin.js            # Admin account seeder
+  seedAdmin.js            # Admin account seeder (manual)
+  seedData.js             # Auto-seed admin + sample models on startup
 routes/
   auth.js                 # Login, register, logout
   middleware.js            # requireLogin, requireAdmin
@@ -199,6 +202,6 @@ presentations/
 
 | Setting | Value |
 |---|---|
-| Build command | `npm install && node db/seedAdmin.js` |
+| Build command | `npm install` |
 | Start command | `npm start` |
 | Health check path | `/healthz` |

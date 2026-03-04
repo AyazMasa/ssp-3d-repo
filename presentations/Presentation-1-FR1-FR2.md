@@ -142,8 +142,6 @@ A full-stack web application that:
 
 ### Requirement: Full user record management
 
-This was added to satisfy the lecturer's requirement for **user management** beyond just admin login.
-
 #### User CRUD Routes (all require `requireAdmin` middleware)
 - `GET /users` – List all users (table: ID, Username, Email, Role, Created)
 - `GET /users/new` – Add user form (username, email, password, role)
