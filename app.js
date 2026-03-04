@@ -45,6 +45,8 @@ app.use("/models", modelRoutes);
 app.use("/", reportRoutes);
 app.use("/users", usersRoutes);
 
+app.get("/healthz", (req, res) => res.status(200).send("ok"));
+
 app.use((req, res) => res.status(404).render("404", { title: "Page Not Found" }));
 
 initDb()
