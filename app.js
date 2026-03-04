@@ -3,6 +3,7 @@ const express = require("express");
 const session = require("express-session");
 const SQLiteStore = require("connect-sqlite3")(session);
 const { initDb } = require("./db/db");
+const { seedIfEmpty } = require("./db/seedData");
 
 const publicRoutes = require("./routes/public");
 const authRoutes = require("./routes/auth");
@@ -55,6 +56,7 @@ app.get("/healthz", (req, res) => res.status(200).send("ok"));
 app.use((req, res) => res.status(404).render("404", { title: "Page Not Found" }));
 
 initDb()
+  .then(() => seedIfEmpty())
   .then(() => {
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => console.log(`Server running: http://localhost:${PORT}`));

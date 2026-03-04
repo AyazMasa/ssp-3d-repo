@@ -64,13 +64,15 @@ A full-stack web application that:
    - Fields: Name, Email, Subject, Message
    - Hidden `_subject` field for email notifications
 
-### Screenshot Placeholder: Public Pages
-```
-[SCREENSHOT: Home page hero + feature grid]
-[SCREENSHOT: About page with technology table]
-[SCREENSHOT: Contact page form]
-[SCREENSHOT: Formspree email notification received]
-```
+### Screenshots: Public Pages
+
+![Home page hero + feature grid](../Screenshots/home-hero.png)
+
+![About page with technology table](../Screenshots/about-tech-table.png)
+
+![Contact page form](../Screenshots/contact-form.png)
+
+![Formspree email notification received](../Screenshots/formspree-email.png)
 
 ---
 
@@ -95,12 +97,13 @@ A full-stack web application that:
 - Regular users can only **Edit/Delete their own models**
 - Admins can edit/delete any model
 
-### Screenshot Placeholder: Read Operations
-```
-[SCREENSHOT: Models list page with search bar]
-[SCREENSHOT: Model detail view with "Added By"]
-[SCREENSHOT: Model list as regular user (no edit/delete on other users' models)]
-```
+### Screenshots: Read Operations
+
+![Models list page with search bar](../Screenshots/models-list-search.png)
+
+![Model detail view with Added By](../Screenshots/model-detail-added-by.png)
+
+![Model list as regular user – no edit/delete on others' models](../Screenshots/models-list-regular-user.png)
 
 ---
 
@@ -123,13 +126,15 @@ A full-stack web application that:
 - **Access restricted** to model owner or admin
 - Flash message on successful deletion
 
-### Screenshot Placeholder: Create/Edit/Delete
-```
-[SCREENSHOT: Add New Model form with validation]
-[SCREENSHOT: Edit Model form (pre-filled)]
-[SCREENSHOT: Delete confirmation dialog]
-[SCREENSHOT: "Model added successfully" flash message]
-```
+### Screenshots: Create/Edit/Delete
+
+![Add New Model form](../Screenshots/add-model-form.png)
+
+![Edit Model form (pre-filled)](../Screenshots/edit-model-form.png)
+
+![Delete confirmation dialog](../Screenshots/delete-confirmation.png)
+
+![Model added successfully flash message](../Screenshots/model-added-flash.png)
 
 ---
 
@@ -151,13 +156,15 @@ This was added to satisfy the lecturer's requirement for **user management** bey
 - "Users" link in navbar only visible to admins
 - Server-side `requireAdmin` middleware enforces this
 
-### Screenshot Placeholder: User Management
-```
-[SCREENSHOT: Users list page (admin view)]
-[SCREENSHOT: Add User form with role selector]
-[SCREENSHOT: User detail view]
-[SCREENSHOT: 403/redirect when regular user tries /users]
-```
+### Screenshots: User Management
+
+![Users list page (admin view)](../Screenshots/users-list-admin.png)
+
+![Add User form with role selector](../Screenshots/add-user-form.png)
+
+![User detail view](../Screenshots/user-detail.png)
+
+![Redirect when regular user tries /users](../Screenshots/user-access-denied.png)
 
 ---
 
