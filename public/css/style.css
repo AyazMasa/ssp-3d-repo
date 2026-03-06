@@ -175,6 +175,16 @@ img { max-width: 100%; }
   font-weight: 500;
   font-size: 0.9rem;
 }
+.flash-message.flash-error {
+  background: var(--danger-bg);
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+.flash-message.flash-warning {
+  background: var(--warning-bg);
+  color: #92400e;
+  border-color: #fcd34d;
+}
 
 /* --- Main Content --- */
 .main-content {
@@ -311,7 +321,8 @@ tbody tr:hover { background: #f8fafc; }
 .badge-admin { background: #fef3c7; color: #92400e; }
 .badge-user { background: #dbeafe; color: #1e40af; }
 .badge-public { background: #d1fae5; color: #065f46; }
-.badge-hidden { background: #fee2e2; color: #991b1b; }
+.badge-private { background: #fee2e2; color: #991b1b; }
+.badge-hidden { background: #fef3c7; color: #92400e; }
 
 /* --- Detail Grid --- */
 .detail-grid {

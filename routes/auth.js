@@ -40,9 +40,16 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    req.session.user = { id: user.id, username: user.username, role: user.role };
-    req.session.flash = "Welcome back, " + user.username + "!";
-    res.redirect("/home");
+    // Regenerate session to prevent session fixation
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error("Session regeneration error:", err);
+        return res.status(500).send("Internal server error");
+      }
+      req.session.user = { id: user.id, username: user.username, role: user.role };
+      req.session.flash = "Welcome back, " + user.username + "!";
+      res.redirect("/home");
+    });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).send("Internal server error");
@@ -62,35 +69,35 @@ router.post("/register", async (req, res) => {
     return res.render("register", {
       title: "Register",
       error: "All fields are required.",
-      old: req.body,
+      old: { username, email },
     });
   }
   if (username.length < 3) {
     return res.render("register", {
       title: "Register",
       error: "Username must be at least 3 characters.",
-      old: req.body,
+      old: { username, email },
     });
   }
   if (!isValidEmail(email)) {
     return res.render("register", {
       title: "Register",
       error: "Please enter a valid email address.",
-      old: req.body,
+      old: { username, email },
     });
   }
   if (password.length < 6) {
     return res.render("register", {
       title: "Register",
       error: "Password must be at least 6 characters.",
-      old: req.body,
+      old: { username, email },
     });
   }
   if (password !== confirmPassword) {
     return res.render("register", {
       title: "Register",
       error: "Passwords do not match.",
-      old: req.body,
+      old: { username, email },
     });
   }
 
@@ -103,7 +110,7 @@ router.post("/register", async (req, res) => {
       return res.render("register", {
         title: "Register",
         error: "Username or email is already taken.",
-        old: req.body,
+        old: { username, email },
       });
     }
 
@@ -121,7 +128,14 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// --- Logout ---
+// --- Logout (POST to prevent CSRF) ---
+router.post("/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.redirect("/home");
+  });
+});
+
+// GET /logout also supported for convenience
 router.get("/logout", (req, res) => {
   req.session.destroy(() => {
     res.redirect("/home");

@@ -16,42 +16,42 @@
     <div class="form-row">
       <div class="form-group">
         <label>Title <span class="required">*</span></label>
-        <input type="text" name="title" id="edit_title" class="form-control" value="<%= model.title %>" required />
+        <input type="text" name="title" id="edit_title" class="form-control" value="<%= model.title %>" required maxlength="150" />
       </div>
       <div class="form-group">
         <label>Category <span class="required">*</span></label>
-        <input type="text" name="category" id="edit_category" class="form-control" value="<%= model.category %>" required />
+        <input type="text" name="category" id="edit_category" class="form-control" value="<%= model.category %>" required maxlength="100" />
       </div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
         <label>Author Name <span class="required">*</span></label>
-        <input type="text" name="author_name" id="edit_author" class="form-control" value="<%= model.author_name %>" required />
+        <input type="text" name="author_name" id="edit_author" class="form-control" value="<%= model.author_name %>" required maxlength="100" />
       </div>
       <div class="form-group">
         <label>Author Email <span class="required">*</span></label>
-        <input type="email" name="author_email" id="edit_email" class="form-control" value="<%= model.author_email %>" required />
+        <input type="email" name="author_email" id="edit_email" class="form-control" value="<%= model.author_email %>" required maxlength="150" />
       </div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
         <label>Format <span class="required">*</span></label>
-        <input type="text" name="format" id="edit_format" class="form-control" value="<%= model.format %>" required />
+        <input type="text" name="format" id="edit_format" class="form-control" value="<%= model.format %>" required maxlength="20" />
       </div>
       <div class="form-group">
         <label>Visibility Status</label>
-        <select name="visibility_status" class="form-control">
+        <select name="visibility_status" id="edit_visibility" class="form-control">
           <option value="Public" <%= model.visibility_status === 'Public' ? 'selected' : '' %>>Public</option>
-          <option value="Hidden" <%= model.visibility_status === 'Hidden' ? 'selected' : '' %>>Hidden</option>
+          <option value="Private" <%= model.visibility_status === 'Private' ? 'selected' : '' %>>Private</option>
         </select>
       </div>
     </div>
 
     <div class="form-group">
       <label>File Link <span class="required">*</span></label>
-      <input type="text" name="file_link" id="edit_link" class="form-control" value="<%= model.file_link %>" required />
+      <input type="url" name="file_link" id="edit_link" class="form-control" value="<%= model.file_link %>" placeholder="https://example.com/model.glb" required maxlength="500" />
     </div>
 
     <div class="form-actions">

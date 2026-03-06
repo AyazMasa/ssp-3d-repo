@@ -13,6 +13,9 @@ const usersRoutes = require("./routes/users");
 
 const app = express();
 
+// Trust Render's reverse proxy for secure cookies
+app.set("trust proxy", 1);
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -26,7 +29,7 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production" && false,   // set true only if using HTTPS proxy
+      secure: process.env.NODE_ENV === "production",   // requires HTTPS proxy (Render provides this)
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24,  // 24 hours
     },
@@ -41,7 +44,10 @@ app.use((req, res, next) => {
   }
   res.locals.user = req.session.user || null;
   res.locals.flash = req.session.flash || null;
+  res.locals.flashType = req.session.flashType || 'success';
+  res.locals.currentPath = req.path;
   delete req.session.flash;
+  delete req.session.flashType;
   next();
 });
 

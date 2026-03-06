@@ -156,6 +156,19 @@ router.post("/:id", requireAdmin, async (req, res) => {
   }
 
   try {
+    // Prevent admin from demoting themselves
+    if (Number(req.params.id) === req.session.user.id && role !== 'admin') {
+      const userRecord = await get(
+        "SELECT id, username, email, role FROM users WHERE id = ?",
+        [req.params.id]
+      );
+      return res.render("users/edit", {
+        title: "Edit User",
+        userRecord: { ...userRecord, ...req.body },
+        error: "You cannot demote your own admin account.",
+      });
+    }
+
     const dup = await get(
       "SELECT id FROM users WHERE (username = ? OR email = ?) AND id != ?",
       [username, email, req.params.id]
@@ -197,6 +210,11 @@ router.post("/:id/delete", requireAdmin, async (req, res) => {
   }
 
   try {
+    // Reassign orphaned models to the admin performing the deletion
+    await run("UPDATE models SET created_by = ? WHERE created_by = ?", [
+      req.session.user.id,
+      id,
+    ]);
     await run("DELETE FROM users WHERE id = ?", [id]);
     req.session.flash = "User deleted successfully.";
     res.redirect("/users");

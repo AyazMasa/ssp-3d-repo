@@ -11,46 +11,46 @@
     <div class="form-row">
       <div class="form-group">
         <label>Model ID <span class="required">*</span></label>
-        <input type="text" name="model_id" id="model_id" class="form-control" placeholder="e.g. MDL-0001" value="<%= old.model_id || '' %>" required />
+        <input type="text" name="model_id" id="model_id" class="form-control" placeholder="e.g. MDL-0001" value="<%= old.model_id || '' %>" required maxlength="10" />
       </div>
       <div class="form-group">
         <label>Title <span class="required">*</span></label>
-        <input type="text" name="title" id="model_title" class="form-control" placeholder="Model title" value="<%= old.title || '' %>" required />
+        <input type="text" name="title" id="model_title" class="form-control" placeholder="Model title" value="<%= old.title || '' %>" required maxlength="150" />
       </div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
         <label>Author Name <span class="required">*</span></label>
-        <input type="text" name="author_name" id="model_author" class="form-control" placeholder="Author name" value="<%= old.author_name || '' %>" required />
+        <input type="text" name="author_name" id="model_author" class="form-control" placeholder="Author name" value="<%= old.author_name || '' %>" required maxlength="100" />
       </div>
       <div class="form-group">
         <label>Author Email <span class="required">*</span></label>
-        <input type="email" name="author_email" id="model_email" class="form-control" placeholder="author@email.com" value="<%= old.author_email || '' %>" required />
+        <input type="email" name="author_email" id="model_email" class="form-control" placeholder="author@email.com" value="<%= old.author_email || '' %>" required maxlength="150" />
       </div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
         <label>Category <span class="required">*</span></label>
-        <input type="text" name="category" id="model_category" class="form-control" placeholder="e.g. Architecture, Engineering" value="<%= old.category || '' %>" required />
+        <input type="text" name="category" id="model_category" class="form-control" placeholder="e.g. Architecture, Engineering" value="<%= old.category || '' %>" required maxlength="100" />
       </div>
       <div class="form-group">
         <label>Format <span class="required">*</span></label>
-        <input type="text" name="format" id="model_format" class="form-control" placeholder="e.g. OBJ, STL, FBX" value="<%= old.format || '' %>" required />
+        <input type="text" name="format" id="model_format" class="form-control" placeholder="e.g. OBJ, STL, FBX" value="<%= old.format || '' %>" required maxlength="20" />
       </div>
     </div>
 
     <div class="form-group">
       <label>File Link <span class="required">*</span></label>
-      <input type="text" name="file_link" id="model_link" class="form-control" placeholder="URL or file path" value="<%= old.file_link || '' %>" required />
+      <input type="url" name="file_link" id="model_link" class="form-control" placeholder="https://example.com/model.glb" value="<%= old.file_link || '' %>" required maxlength="500" />
     </div>
 
     <div class="form-group">
       <label>Visibility Status</label>
-      <select name="visibility_status" class="form-control">
+      <select name="visibility_status" id="model_visibility" class="form-control">
         <option value="Public" <%= (old.visibility_status === 'Public' || !old.visibility_status) ? 'selected' : '' %>>Public</option>
-        <option value="Hidden" <%= old.visibility_status === 'Hidden' ? 'selected' : '' %>>Hidden</option>
+        <option value="Private" <%= old.visibility_status === 'Private' ? 'selected' : '' %>>Private</option>
       </select>
     </div>
 

@@ -85,6 +85,28 @@ router.post("/new", requireLogin, async (req, res) => {
     });
   }
 
+  // Model ID pattern validation
+  if (!/^[A-Za-z]{2,5}-\d{3,5}$/.test(model_id)) {
+    return res.render("models/new", {
+      title: "Add Model",
+      error: "Model ID must follow the pattern: ABC-1234 (2-5 letters, dash, 3-5 digits).",
+      old: req.body,
+    });
+  }
+
+  // URL validation for file_link
+  if (!/^https?:\/\/.+/i.test(file_link)) {
+    return res.render("models/new", {
+      title: "Add Model",
+      error: "File link must be a valid URL starting with http:// or https://",
+      old: req.body,
+    });
+  }
+
+  // Visibility whitelist
+  const validVisibility = ["Public", "Private"];
+  const vis = validVisibility.includes(visibility_status) ? visibility_status : "Public";
+
   try {
     // Duplicate model_id check
     const existing = await get("SELECT id FROM models WHERE model_id = ?", [model_id]);
@@ -108,7 +130,7 @@ router.post("/new", requireLogin, async (req, res) => {
         category,
         format,
         file_link,
-        visibility_status || "Public",
+        vis,
         req.session.user.id,
       ]
     );
@@ -122,47 +144,36 @@ router.post("/new", requireLogin, async (req, res) => {
 });
 
 router.get("/:id/edit", requireLogin, async (req, res) => {
-  const model = await get("SELECT * FROM models WHERE id = ?", [req.params.id]);
-  if (!model) return res.status(404).send("Not found");
+  try {
+    const model = await get("SELECT * FROM models WHERE id = ?", [req.params.id]);
+    if (!model) return res.status(404).send("Not found");
 
-  // Only the owner or an admin can edit
-  if (model.created_by !== req.session.user.id && req.session.user.role !== "admin") {
-    req.session.flash = "You can only edit models you created.";
-    return res.redirect("/models");
+    // Only the owner or an admin can edit
+    if (model.created_by !== req.session.user.id && req.session.user.role !== "admin") {
+      req.session.flash = "You can only edit models you created.";
+      req.session.flashType = "error";
+      return res.redirect("/models");
+    }
+
+    res.render("models/edit", { title: "Edit Model", model, error: null });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Database error");
   }
-
-  res.render("models/edit", { title: "Edit Model", model, error: null });
 });
 
 router.post("/:id/edit", requireLogin, async (req, res) => {
-  // Ownership check
-  const existing = await get("SELECT * FROM models WHERE id = ?", [req.params.id]);
-  if (!existing) return res.status(404).send("Not found");
-  if (existing.created_by !== req.session.user.id && req.session.user.role !== "admin") {
-    req.session.flash = "You can only edit models you created.";
-    return res.redirect("/models");
-  }
+  try {
+    // Ownership check
+    const existing = await get("SELECT * FROM models WHERE id = ?", [req.params.id]);
+    if (!existing) return res.status(404).send("Not found");
+    if (existing.created_by !== req.session.user.id && req.session.user.role !== "admin") {
+      req.session.flash = "You can only edit models you created.";
+      req.session.flashType = "error";
+      return res.redirect("/models");
+    }
 
-  const {
-    title,
-    author_name,
-    author_email,
-    category,
-    format,
-    file_link,
-    visibility_status,
-  } = req.body;
-
-  if (!title || !author_name || !author_email || !category || !format || !file_link) {
-    const model = await get("SELECT * FROM models WHERE id = ?", [req.params.id]);
-    return res.render("models/edit", { title: "Edit Model", model, error: "All fields required." });
-  }
-
-  await run(
-    `UPDATE models
-     SET title=?, author_name=?, author_email=?, category=?, format=?, file_link=?, visibility_status=?
-     WHERE id=?`,
-    [
+    const {
       title,
       author_name,
       author_email,
@@ -170,12 +181,52 @@ router.post("/:id/edit", requireLogin, async (req, res) => {
       format,
       file_link,
       visibility_status,
-      req.params.id,
-    ]
-  );
+    } = req.body;
 
-  req.session.flash = "Model updated.";
-  res.redirect("/models");
+    if (!title || !author_name || !author_email || !category || !format || !file_link) {
+      return res.render("models/edit", {
+        title: "Edit Model",
+        model: { ...existing, ...req.body },
+        error: "All fields required.",
+      });
+    }
+
+    // Email validation
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(author_email);
+    if (!emailOk) {
+      return res.render("models/edit", {
+        title: "Edit Model",
+        model: { ...existing, ...req.body },
+        error: "Invalid email format.",
+      });
+    }
+
+    // URL validation for file_link
+    if (!/^https?:\/\/.+/i.test(file_link)) {
+      return res.render("models/edit", {
+        title: "Edit Model",
+        model: { ...existing, ...req.body },
+        error: "File link must be a valid URL starting with http:// or https://",
+      });
+    }
+
+    // Visibility whitelist
+    const validVisibility = ["Public", "Private"];
+    const vis = validVisibility.includes(visibility_status) ? visibility_status : "Public";
+
+    await run(
+      `UPDATE models
+       SET title=?, author_name=?, author_email=?, category=?, format=?, file_link=?, visibility_status=?
+       WHERE id=?`,
+      [title, author_name, author_email, category, format, file_link, vis, req.params.id]
+    );
+
+    req.session.flash = "Model updated.";
+    res.redirect("/models");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Database error");
+  }
 });
 
 router.get("/:id", requireLogin, async (req, res) => {
@@ -194,6 +245,7 @@ router.get("/:id", requireLogin, async (req, res) => {
         && model.created_by !== req.session.user.id
         && req.session.user.role !== "admin") {
       req.session.flash = "This model is private.";
+      req.session.flashType = "error";
       return res.redirect("/models");
     }
 
@@ -211,6 +263,7 @@ router.post("/:id/delete", requireLogin, async (req, res) => {
     if (!model) return res.status(404).send("Model not found");
     if (model.created_by !== req.session.user.id && req.session.user.role !== "admin") {
       req.session.flash = "You can only delete models you created.";
+      req.session.flashType = "error";
       return res.redirect("/models");
     }
 

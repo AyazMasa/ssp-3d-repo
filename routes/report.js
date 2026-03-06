@@ -1,6 +1,5 @@
 const express = require("express");
 const path = require("path");
-const fs = require("fs");
 const router = express.Router();
 
 const { all } = require("../db/db");
@@ -16,8 +15,18 @@ function escapeXml(s) {
     .replace(/'/g, "&apos;");
 }
 
-async function buildModelsXml() {
-  const models = await all("SELECT * FROM models ORDER BY id DESC");
+async function buildModelsXml(user) {
+  let models;
+  if (user && user.role === 'admin') {
+    models = await all("SELECT * FROM models ORDER BY id DESC");
+  } else if (user) {
+    models = await all(
+      "SELECT * FROM models WHERE visibility_status = 'Public' OR created_by = ? ORDER BY id DESC",
+      [user.id]
+    );
+  } else {
+    models = await all("SELECT * FROM models WHERE visibility_status = 'Public' ORDER BY id DESC");
+  }
   const generatedAt = new Date().toISOString();
 
   const itemsXml = models
@@ -47,12 +56,7 @@ ${itemsXml}
 // 1) Export XML file (and show it in browser)
 router.get("/report/xml", requireLogin, async (req, res) => {
   try {
-    const { xml } = await buildModelsXml();
-
-    // Also write to file (so you can screenshot / submit it)
-    const outPath = path.join(__dirname, "..", "xml", "models.xml");
-    fs.writeFileSync(outPath, xml, "utf-8");
-
+    const { xml } = await buildModelsXml(req.session.user);
     res.type("application/xml").send(xml);
   } catch (err) {
     console.error(err);
@@ -68,7 +72,7 @@ router.get("/report", requireLogin, (req, res) => {
 // 3) Transform XML -> HTML via Saxon-JS (used by iframe)
 router.get("/report/html", requireLogin, async (req, res) => {
   try {
-    const { xml } = await buildModelsXml();
+    const { xml } = await buildModelsXml(req.session.user);
 
     const sefPath = path.join(__dirname, "..", "xml", "models.sef.json");
 

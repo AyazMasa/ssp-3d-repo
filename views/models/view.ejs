@@ -61,7 +61,10 @@
     <div class="detail-value"><%= model.format %></div>
 
     <div class="detail-label">File Link</div>
-    <div class="detail-value"><a href="<%= model.file_link %>" target="_blank"><%= model.file_link %></a></div>
+    <div class="detail-value">
+      <% const safeLink = (model.file_link || '').match(/^https?:\/\//) ? model.file_link : '#'; %>
+      <a href="<%= safeLink %>" target="_blank" rel="noopener noreferrer"><%= model.file_link %></a>
+    </div>
 
     <div class="detail-label">Status</div>
     <div class="detail-value"><span class="badge badge-<%= model.visibility_status.toLowerCase() %>"><%= model.visibility_status %></span></div>
@@ -80,7 +83,7 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 <% } %>
 <% if (isThreeJs) { %>
-  <script>window.__modelFileLink = "<%= model.file_link %>";</script>
+  <script>window.__modelFileLink = "<%- model.file_link.replace(/\"/g, '&quot;').replace(/\\/g, '\\\\') %>";</script>
   <script src="/js/viewer3d.js"></script>
 <% } %>
 
