@@ -6,26 +6,37 @@ const { requireLogin } = require("./middleware");
 router.get("/", requireLogin, async (req, res) => {
   try {
     const search = req.query.search || "";
+    const uid = req.session.user.id;
+    const isAdmin = req.session.user.role === "admin";
 
     let models;
 
     if (search) {
-      models = await all(
-        `SELECT * FROM models
-         WHERE model_id LIKE ?
-            OR title LIKE ?
-            OR author_name LIKE ?
-            OR category LIKE ?
-         ORDER BY id DESC`,
-        [
-          `%${search}%`,
-          `%${search}%`,
-          `%${search}%`,
-          `%${search}%`,
-        ]
-      );
+      if (isAdmin) {
+        models = await all(
+          `SELECT * FROM models
+           WHERE (model_id LIKE ? OR title LIKE ? OR author_name LIKE ? OR category LIKE ?)
+           ORDER BY id DESC`,
+          [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
+        );
+      } else {
+        models = await all(
+          `SELECT * FROM models
+           WHERE (model_id LIKE ? OR title LIKE ? OR author_name LIKE ? OR category LIKE ?)
+             AND (visibility_status = 'Public' OR created_by = ?)
+           ORDER BY id DESC`,
+          [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, uid]
+        );
+      }
     } else {
-      models = await all("SELECT * FROM models ORDER BY id DESC");
+      if (isAdmin) {
+        models = await all("SELECT * FROM models ORDER BY id DESC");
+      } else {
+        models = await all(
+          "SELECT * FROM models WHERE visibility_status = 'Public' OR created_by = ? ORDER BY id DESC",
+          [uid]
+        );
+      }
     }
 
     res.render("models/index", {
@@ -177,6 +188,14 @@ router.get("/:id", requireLogin, async (req, res) => {
     );
 
     if (!model) return res.status(404).send("Model not found");
+
+    // Private models: only visible to owner or admin
+    if (model.visibility_status === "Private"
+        && model.created_by !== req.session.user.id
+        && req.session.user.role !== "admin") {
+      req.session.flash = "This model is private.";
+      return res.redirect("/models");
+    }
 
     res.render("models/view", { title: "Model Details", model });
   } catch (err) {
