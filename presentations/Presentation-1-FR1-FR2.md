@@ -29,6 +29,8 @@ A full-stack web application that:
 - Serves as a centralized repository for 3D models/schematics
 - Supports public registration and role-based access (admin & user)
 - Full CRUD for both **models** and **users**
+- **Embedded 3D model viewer** (GLB/GLTF via Google model-viewer, STL/OBJ via Three.js)
+- Private model visibility control
 - Real email delivery via Formspree contact form
 - XML/XSLT report generation
 - Deployed live on Render.com
@@ -37,7 +39,8 @@ A full-stack web application that:
 - **Frontend:** HTML5, CSS3 (custom properties, responsive), JavaScript, EJS
 - **Backend:** Node.js, Express.js
 - **Database:** SQLite (with auto-migration)
-- **Auth:** bcryptjs, express-session
+- **Auth:** bcryptjs, express-session (session regeneration on login)
+- **3D Viewer:** Google model-viewer (GLB/GLTF), Three.js (STL/OBJ)
 - **Additional:** XML, XSLT (Saxon-JS), Formspree, Render.com
 
 ---
@@ -60,9 +63,10 @@ A full-stack web application that:
 
 3. **Contact Page** (`/contact`)
    - **Working contact form via Formspree** (sends real email notifications)
-   - Client-side validation before submission
+   - Client-side validation before submission (inline error messages)
    - Fields: Name, Email, Subject, Message
    - Hidden `_subject` field for email notifications
+   - Hidden `_next` field redirects back to `/contact?sent=1` with success message after submission
 
 ### Screenshots: Public Pages
 
@@ -89,13 +93,15 @@ A full-stack web application that:
 #### View Model Details (`/models/:id`)
 - Full detail grid layout
 - Shows "Added By" (owner username)
+- **Embedded 3D viewer** – GLB/GLTF models rendered via Google model-viewer; STL/OBJ via Three.js canvas
 - Edit button visible only to owner or admin
 - Linked author email, file link
 
-### Ownership System
+### Ownership & Visibility System
 - Every model tracks `created_by` (user ID of creator)
 - Regular users can only **Edit/Delete their own models**
 - Admins can edit/delete any model
+- **Private models** are hidden from the list for other users – only visible to the owner and admins
 
 ### Screenshots: Read Operations
 
@@ -111,10 +117,11 @@ A full-stack web application that:
 
 ### Create Model (`/models/new`)
 - Two-column form layout with required field indicators
-- Fields: Model ID, Title, Author Name/Email, Category, Format, File Link, Visibility
-- Client-side validation (pattern: `MDL-0001`, email format)
-- Server-side: duplicate Model ID rejection, email format check
+- Fields: Model ID, Title, Author Name/Email, Category, Format, File Link, Visibility (Public/Private)
+- Client-side validation (pattern: `MDL-0001`, email format, URL + 3D file extension)
+- Server-side: duplicate Model ID rejection, email format check, URL validation, 3D extension enforcement
 - `created_by` is set automatically to current user's ID
+- File link must point to a valid 3D model file (.glb, .gltf, .stl, .obj, .fbx, .step, .dwg, etc.)
 
 ### Edit Model (`/models/:id/edit`)
 - Pre-filled form with current data
@@ -220,12 +227,19 @@ A full-stack web application that:
 - ✅ List, view, create, edit, delete users
 - ✅ Admin-only access enforced by middleware
 - ✅ Role assignment (admin/user)
+- ✅ Admin cannot demote themselves (prevents zero-admin scenario)
+- ✅ Orphaned models reassigned to admin when user is deleted
 
 ### Beyond Requirements
 - Ownership-based access control on models
-- Working contact form (not just UI demo)
-- Modern UI with responsive design
-- Live deployment on Render.com
+- **Embedded 3D model viewer** (GLB/GLTF + STL/OBJ support)
+- Private model visibility control
+- File link validation (URL + 3D file extension)
+- Working contact form (not just UI demo) with redirect-back success message
+- Modern UI with responsive design and active nav highlighting
+- Flash messages with success/error/warning color types
+- Inline form validation (no alert popups)
+- Live deployment on Render.com with auto-seeding (5 sample models)
 
 ---
 

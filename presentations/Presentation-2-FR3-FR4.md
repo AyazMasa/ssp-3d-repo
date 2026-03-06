@@ -55,45 +55,66 @@ User Input
 
 ### Dedicated Validation Script
 
-All client-side validation is centralized in `public/js/validation.js`, which attaches to forms by their `action` attribute on page load.
+All client-side validation is centralized in `public/js/validation.js`. Uses **inline error messages** (no `alert()` popups) via helper functions:
 
-#### Login Form Validation
+#### Inline Error Display System
 ```javascript
-if (action === "/login") {
-  if (!fd.get("username") || !fd.get("password")) {
-    alert("Please enter username and password.");
-    return; // prevents submission
+function showFormError(form, msg) {
+  var el = form.querySelector('.js-error-message');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'error-message js-error-message';
+    form.insertBefore(el, form.firstChild);
   }
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  return false; // prevents form submission
+}
+function clearFormError(form) {
+  var el = form.querySelector('.js-error-message');
+  if (el) el.style.display = 'none';
 }
 ```
 
+#### Shared Utility Functions
+```javascript
+function validEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
+function validUrl(url)   { return /^https?:\/\/.+/i.test(url); }
+function valid3DFileUrl(url) {
+  if (!validUrl(url)) return false;
+  return /\.(glb|gltf|stl|obj|fbx|step|stp|dwg|3ds|dae|ply|3mf|iges|igs)(\?.*)?$/i.test(url);
+}
+```
+
+#### Login Form Validation
+- Username and password required (inline error if missing)
+
 #### Register Form Validation
 - Username: minimum 3 characters
-- Email: regex pattern `^[^\s@]+@[^\s@]+\.[^\s@]+$`
-- Password: minimum 6 characters
-- Confirm password: must match password field
+- Email: regex pattern, Password: minimum 6 characters, Confirm: must match
 
-#### Model Form Validation
-- Model ID: must match pattern `MDL-XXXX` (e.g., `MDL-0001`)
+#### Model Form Validation (Create & Edit)
+- Model ID: must match pattern `ABC-1234` (2-5 letters, dash, 3-5 digits)
 - Author email: regex validation
+- **File link: must be a valid URL AND end with a 3D file extension** (.glb, .gltf, .stl, .obj, .fbx, etc.)
 - All required fields enforced
 
 #### Contact Form Validation
-- All fields required (name, email, subject, message)
+- All fields required (name, email, message)
 - Email format validated
-- **Allows Formspree submission** (form action to external URL)
+- Form POSTs to Formspree with `_next` redirect back
 
 #### Admin User Forms
-- Username: min 3 chars
-- Email: regex validated
+- Username: min 3 chars, Email: regex validated, Role: must be 'user' or 'admin'
 - New user: password required (min 6 chars)
 - Edit user: password optional (only update if provided)
 
 ### Screenshot Placeholder: Client-Side Validation
 ```
-[SCREENSHOT: Register form showing "Passwords do not match" alert]
-[SCREENSHOT: Model form showing "Model ID must match MDL-XXXX" alert]
-[SCREENSHOT: Contact form validation preventing empty submission]
+[SCREENSHOT: Register form showing inline "Passwords do not match" error]
+[SCREENSHOT: Model form showing inline "File link must point to a 3D model file" error]
+[SCREENSHOT: Contact form inline validation preventing empty submission]
 ```
 
 ---
@@ -117,9 +138,21 @@ if (password !== confirmPassword)
 ```javascript
 if (!model_id || !title || !author_name || !author_email || !category || !format || !file_link)
   return res.render("models/new", { error: "Please fill all required fields.", old: req.body });
-const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(author_email);
-if (!emailOk)
+// Email format check
+if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(author_email))
   return res.render("models/new", { error: "Invalid email format.", old: req.body });
+// Model ID pattern validation (2-5 letters, dash, 3-5 digits)
+if (!/^[A-Za-z]{2,5}-\d{3,5}$/.test(model_id))
+  return res.render("models/new", { error: "Model ID must follow the pattern: ABC-1234", old: req.body });
+// URL validation
+if (!/^https?:\/\/.+/i.test(file_link))
+  return res.render("models/new", { error: "File link must be a valid URL", old: req.body });
+// 3D file extension enforcement
+if (!/\.(glb|gltf|stl|obj|fbx|step|stp|dwg|3ds|dae|ply|3mf|iges|igs)(\?.*)?$/i.test(file_link))
+  return res.render("models/new", { error: "File link must point to a 3D model file.", old: req.body });
+// Visibility whitelist
+const validVisibility = ["Public", "Private"];
+const vis = validVisibility.includes(visibility_status) ? visibility_status : "Public";
 // Duplicate Model ID check on create
 ```
 
@@ -127,18 +160,19 @@ if (!emailOk)
 ```javascript
 // Admin creating/editing users: checks duplicate username, duplicate email,
 // password requirements, valid role ('admin' or 'user')
+// Admin cannot demote themselves (prevents zero-admin scenario)
 ```
 
 ### Error Handling Pattern
 - All validation failures **re-render the form** with `old: req.body`
-- User's input is preserved so they can fix and resubmit
+- User's input is preserved so they can fix and resubmit (passwords excluded from `old:`)
 - Clear error messages via `error` variable displayed in template
 - Failed submissions **never** reach the database
 
 ### Screenshot Placeholder: Server-Side Validation
 ```
 [SCREENSHOT: Register with duplicate username error]
-[SCREENSHOT: Model form with "Model ID already exists" error]
+[SCREENSHOT: Model form with "File link must point to a 3D model file" error]
 [SCREENSHOT: Form re-rendered with previous data preserved]
 ```
 
@@ -146,13 +180,13 @@ if (!emailOk)
 
 ## Slide 5: FR4 – Flow Management (Routing Architecture)
 
-### Express Routing – 4 Route Modules + Middleware
+### Express Routing – 5 Route Modules + Middleware
 
 #### Route Files
 | File | Purpose | Auth Required |
 |------|---------|---------------|
 | `routes/public.js` | Home, About, Contact | No |
-| `routes/auth.js` | Login, Register, Logout | No |
+| `routes/auth.js` | Login, Register, Logout (POST + GET) | No |
 | `routes/models.js` | Model CRUD | `requireLogin` |
 | `routes/users.js` | User CRUD | `requireAdmin` |
 | `routes/report.js` | XML/XSLT report | `requireLogin` |
@@ -178,7 +212,7 @@ function requireAdmin(req, res, next) {
 **Public:**
 - `GET /` → redirect to `/home`
 - `GET /home`, `/about`, `/contact`
-- `GET /login`, `POST /login`, `GET /register`, `POST /register`, `GET /logout`
+- `GET /login`, `POST /login`, `GET /register`, `POST /register`, `POST /logout`, `GET /logout`
 - `GET /healthz` → health check for Render.com
 
 **Protected (requireLogin):**
@@ -248,12 +282,14 @@ views/
 
 #### Dynamic Data Binding
 ```javascript
-// Layout receives user info + flash messages from app-level middleware
+// Layout receives user info, flash messages + flashType from app-level middleware
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
-  const flash = req.session.flash;
+  res.locals.flash = req.session.flash || null;
+  res.locals.flashType = req.session.flashType || 'success'; // success, error, warning
+  res.locals.currentPath = req.path; // for active nav highlighting
   delete req.session.flash;
-  res.locals.flash = flash || null;
+  delete req.session.flashType;
   next();
 });
 ```
@@ -304,10 +340,11 @@ res.redirect("/models");
 ```
 
 ### Flash Message System
-- Stored in `req.session.flash` (not a separate library)
-- Middleware copies to `res.locals.flash` and deletes from session
-- Layout template displays once and it auto-clears
+- Stored in `req.session.flash` + `req.session.flashType` (not a separate library)
+- Middleware copies to `res.locals.flash` / `res.locals.flashType` and deletes from session
+- Layout template displays with colour based on `flashType`: **success** (green), **error** (red), **warning** (orange)
 - Used for success messages, permission errors, auth feedback
+- Permission denials use `flashType = 'error'` for clear visual distinction
 
 ### Screenshot Placeholder
 ```
@@ -322,23 +359,27 @@ res.redirect("/models");
 
 ### FR3 Requirements – ✅ Completed
 - ✅ Centralized client-side validation (`public/js/validation.js`)
-- ✅ 5 form types validated: Login, Register, Model, Contact, User
+- ✅ **Inline error messages** (no `alert()` popups) via `showFormError()` / `clearFormError()`
+- ✅ 6 form validators: Login, Register, Model Create, Model Edit, Contact, Admin User
 - ✅ Email format regex validation (client + server)
-- ✅ Model ID pattern validation (`MDL-XXXX`)
+- ✅ Model ID pattern validation (`ABC-1234`)
+- ✅ **URL validation** (`validUrl()`) + **3D file extension enforcement** (`valid3DFileUrl()`)
 - ✅ Password matching & strength checks
 - ✅ Server-side validation on all POST routes
 - ✅ Duplicate rejection (Model ID, Username, Email)
-- ✅ Error messages with form data retention (`old: req.body`)
+- ✅ **Visibility whitelist** (only 'Public' or 'Private' accepted)
+- ✅ Error messages with form data retention (`old: req.body`, passwords excluded)
 
 ### FR4 Requirements – ✅ Completed
 - ✅ Modular Express routing (5 route files + middleware)
 - ✅ EJS partial-based template rendering (layout + footer)
 - ✅ 15 view templates organized by feature
-- ✅ Role-aware navigation (guest / user / admin)
+- ✅ Role-aware navigation (guest / user / admin) with **active link highlighting**
 - ✅ PRG pattern for all write operations
-- ✅ Flash message system (no extra library)
+- ✅ Flash message system with **colour types** (success/error/warning)
 - ✅ Centralized auth middleware (`requireLogin`, `requireAdmin`)
 - ✅ 20+ route endpoints covering all features
+- ✅ POST + GET logout support
 - ✅ 404 handler for undefined routes
 
 ---

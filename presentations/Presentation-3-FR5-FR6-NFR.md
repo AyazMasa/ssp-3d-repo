@@ -30,6 +30,7 @@
 - **bcryptjs** password hashing (cost factor 10)
 - **Role-based access** – two roles: `admin` and `user`
 - **express-session** with SQLite session store
+- **Session regeneration on login** – prevents session fixation attacks
 - **Environment-based secret** – `SESSION_SECRET` from env vars
 
 ### Session Flow
@@ -75,14 +76,22 @@ router.post("/login", async (req, res) => {
   if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     return res.render("login", { error: "Invalid username or password." });
   }
-  req.session.user = { id: user.id, username: user.username, role: user.role };
-  req.session.flash = `Welcome back, ${user.username}!`;
-  res.redirect("/models");
+  // Regenerate session to prevent session fixation
+  req.session.regenerate((err) => {
+    if (err) return res.status(500).send("Internal server error");
+    req.session.user = { id: user.id, username: user.username, role: user.role };
+    req.session.flash = "Welcome back, " + user.username + "!";
+    res.redirect("/home");
+  });
 });
 ```
 
-### Logout Route
+### Logout Route (POST to prevent CSRF)
 ```javascript
+router.post("/logout", (req, res) => {
+  req.session.destroy(() => res.redirect("/home"));
+});
+// GET /logout also supported for convenience
 router.get("/logout", (req, res) => {
   req.session.destroy(() => res.redirect("/home"));
 });
@@ -161,18 +170,28 @@ if (model.created_by !== req.session.user.id && req.session.user.role !== "admin
 const session = require("express-session");
 const SQLiteStore = require("connect-sqlite3")(session);
 
+// Trust Render's reverse proxy for secure cookies
+app.set("trust proxy", 1);
+
 app.use(session({
   store: new SQLiteStore({ db: "sessions.sqlite", dir: "./db" }),
   secret: process.env.SESSION_SECRET || "change-this-secret",
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 } // 24 hours
+  cookie: {
+    secure: process.env.NODE_ENV === "production", // HTTPS only in production
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 * 24  // 24 hours
+  }
 }));
 ```
 
 ### Security Features
+- **`trust proxy: 1`** – Required for `secure: true` cookies behind Render's reverse proxy
+- **`secure: true` in production** – Cookie only sent over HTTPS
 - **`httpOnly: true`** – Cookie not accessible from JavaScript (prevents XSS theft)
 - **`maxAge: 24h`** – Sessions automatically expire
+- **Session regeneration** – `req.session.regenerate()` on login to prevent session fixation
 - **Environment-based secret** – `SESSION_SECRET` env var on Render.com
 - **Stale session cleanup** – Middleware checks if user still exists in DB
 - **`saveUninitialized: false`** – No empty sessions created
@@ -200,9 +219,15 @@ app.use(async (req, res, next) => {
 
 ### Requirement: Export model data to XML format
 
+### Visibility-Filtered XML Generation
+The XML export **respects user visibility rules** – the same filtering as the models list:
+- **Admins** see all models
+- **Regular users** see Public models + their own Private models
+- **Guests** see Public models only
+
 ### XML Generation Process
 ```
-Database Query (SELECT * FROM models)
+Database Query (filtered by user role/ownership)
     ↓
 [Format each row as XML element]
     ↓
@@ -210,9 +235,7 @@ Database Query (SELECT * FROM models)
     ↓
 [Wrap in root element with timestamp]
     ↓
-[Write to file: xml/models.xml]
-    ↓
-[Send to browser as application/xml]
+[Send directly to browser as application/xml]
 ```
 
 ### XML Structure Example
@@ -246,8 +269,8 @@ function escapeXml(s) {
 
 ### Route: `/report/xml`
 - Protected route (login required)
-- Generates XML from all models in database
-- Saves to `xml/models.xml` on disk
+- Generates visibility-filtered XML from database
+- Streams directly to browser (no file saved to disk)
 - Returns `application/xml` content type
 
 ### Screenshot Placeholder
@@ -312,25 +335,36 @@ XML (models.xml)
 - ✅ Pre-compiled XSLT (SEF JSON) for fast transformation
 - ✅ Async/await throughout (non-blocking I/O)
 - ✅ Static file serving from `public/` folder
+- ✅ XML generated in-memory (no disk I/O)
 
 ### NFR2 – Security
 - ✅ **bcryptjs** password hashing (not plaintext)
+- ✅ **Session regeneration on login** (prevents session fixation)
 - ✅ **Session secret from environment variable** (not hardcoded)
+- ✅ **Secure cookies in production** (`secure: true` + `trust proxy`)
 - ✅ **httpOnly cookies** (XSS protection)
 - ✅ **Parameterized SQL queries** (prevent injection)
 - ✅ **HTML escaping** in EJS templates (prevent XSS)
+- ✅ **XSS-safe file link rendering** (href restricted to http/https)
 - ✅ **XML character escaping** (prevent injection)
 - ✅ **Role-based + ownership-based access control**
+- ✅ **Admin self-demotion prevention** (prevents zero-admin scenario)
+- ✅ **POST logout** (prevents CSRF via GET)
 - ✅ **Stale session cleanup** (deleted users can't stay logged in)
+- ✅ **Visibility-filtered reports** (Private models excluded for non-owners)
 
 ### NFR3 – Usability
 - ✅ Modern UI with CSS custom properties and responsive design
+- ✅ **Embedded 3D model viewer** (GLB/GLTF via model-viewer, STL/OBJ via Three.js)
 - ✅ Hero section with contextual CTAs (guest vs. logged-in)
 - ✅ Role badges in navbar (visual role indicator)
-- ✅ Flash messages for all operations
+- ✅ **Active nav link highlighting** (via `currentPath`)
+- ✅ Flash messages with **colour types** (success/error/warning)
+- ✅ **Inline form validation** (no alert popups)
 - ✅ Form data retention on validation errors
 - ✅ Search/filter on models list
 - ✅ Confirmation dialogs before destructive actions
+- ✅ **File link validation** (URL + 3D extension enforcement)
 
 ### NFR4 – Maintainability
 - ✅ Modular route files (public, auth, models, users, report)
@@ -339,6 +373,7 @@ XML (models.xml)
 - ✅ Centralized validation (validation.js)
 - ✅ Database auto-migration on startup
 - ✅ Environment variable configuration
+- ✅ Try-catch error handling on all async routes
 
 ### NFR5 – Deployment & Availability
 - ✅ **Live on Render.com** – https://ssp-3d-repo.onrender.com
@@ -346,6 +381,7 @@ XML (models.xml)
 - ✅ `PORT` environment variable support
 - ✅ `.gitignore` for clean deployments
 - ✅ GitHub integration for auto-deploy
+- ✅ **Auto-seeding** (admin + 5 sample GLB models on first start)
 
 ---
 
@@ -355,28 +391,38 @@ XML (models.xml)
 
 | Requirement | Status | Details |
 |-------------|--------|---------|
-| FR1: Public Pages | ✅ | Home (hero + features), About (tech table), Contact (Formspree) |
-| FR2: CRUD Operations | ✅ | Model CRUD (ownership) + User CRUD (admin) |
-| FR3: Data Validation | ✅ | Client-side (validation.js) + Server-side (all routes) |
-| FR4: Flow Management | ✅ | 5 route modules, EJS partials, PRG, flash messages |
-| FR5: Session Management | ✅ | bcrypt auth, registration, roles, middleware, SQLite sessions |
-| FR6: XML + XSLT | ✅ | XML export, Saxon-JS XSLT 3.0, report page with iframe |
+| FR1: Public Pages | ✅ | Home (hero + features), About (tech table), Contact (Formspree with redirect-back) |
+| FR2: CRUD Operations | ✅ | Model CRUD (ownership + visibility) + User CRUD (admin, self-demotion prevention) |
+| FR3: Data Validation | ✅ | Client-side (inline errors, URL + 3D extension) + Server-side (all routes) |
+| FR4: Flow Management | ✅ | 5 route modules, EJS partials, PRG, flash messages with colour types, active nav |
+| FR5: Session Management | ✅ | bcrypt auth, session regeneration, secure cookies, roles, middleware, SQLite sessions |
+| FR6: XML + XSLT | ✅ | Visibility-filtered XML, Saxon-JS XSLT 3.0, report page with iframe |
 
 ### Beyond Requirements
 - ✅ Public user registration (not just admin login)
 - ✅ Model ownership tracking with `created_by`
-- ✅ Working contact form via **Formspree** (real email delivery)
+- ✅ **Embedded 3D model viewer** (GLB/GLTF via model-viewer, STL/OBJ via Three.js)
+- ✅ **Private model visibility** control (Public/Private)
+- ✅ **File link validation** (URL + 3D file extension enforcement)
+- ✅ Working contact form via **Formspree** (real email delivery with redirect-back)
+- ✅ **Inline form validation** (no alert popups)
+- ✅ Flash messages with **colour types** (success/error/warning)
+- ✅ **Active nav highlighting**
+- ✅ **Admin self-demotion prevention** + orphaned model reassignment
+- ✅ **Session regeneration** on login (prevents session fixation)
+- ✅ **Secure cookies** in production + trust proxy
 - ✅ Modern professional UI (CSS custom properties, responsive)
 - ✅ Live production deployment on **Render.com**
 - ✅ Health check endpoint for monitoring
-- ✅ Admin user management (full CRUD)
+- ✅ Auto-seeding with **5 sample GLB models** from Khronos Group
 - ✅ Search/filter functionality on models
 
 ### Project Statistics
 - **Total Routes:** 20+ endpoints across 5 route files
 - **Templates:** 15 EJS view files
-- **Database Tables:** 2 (models + users)
-- **Validation:** 5 form types covered (client + server)
+- **Database Tables:** 2 (models + users) + sessions
+- **Validation:** 6 form validators (client + server)
+- **3D Formats Supported:** GLB, GLTF, STL, OBJ (viewer) + FBX, STEP, DWG, etc. (link accepted)
 - **Deployment:** Live at https://ssp-3d-repo.onrender.com
 
 ---

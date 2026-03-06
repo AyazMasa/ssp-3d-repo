@@ -83,7 +83,7 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 <% } %>
 <% if (isThreeJs) { %>
-  <script>window.__modelFileLink = "<%- model.file_link.replace(/\"/g, '&quot;').replace(/\\/g, '\\\\') %>";</script>
+  <script>window.__modelFileLink = <%- JSON.stringify(model.file_link) %>;</script>
   <script src="/js/viewer3d.js"></script>
 <% } %>
 

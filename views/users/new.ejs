@@ -7,7 +7,7 @@
     <div class="error-message mt-1"><%= error %></div>
   <% } %>
 
-  <form method="post" action="/users" id="adminUserForm" onsubmit="return validateAdminCreateUserForm();" class="mt-2">
+  <form method="post" action="/users" id="adminCreateUserForm" onsubmit="return validateAdminCreateUserForm();" class="mt-2">
     <div class="form-group">
       <label>Username <span class="required">*</span></label>
       <input type="text" name="username" id="u_username" class="form-control" placeholder="Username" value="<%= old.username || '' %>" required />
