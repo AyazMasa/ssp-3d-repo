@@ -11,6 +11,11 @@ function validUrl(url) {
   return /^https?:\/\/.+/i.test(url);
 }
 
+function valid3DFileUrl(url) {
+  if (!validUrl(url)) return false;
+  return /\.(glb|gltf|stl|obj|fbx|step|stp|dwg|3ds|dae|ply|3mf|iges|igs)(\?.*)?$/i.test(url);
+}
+
 /**
  * Show an inline error message inside a form.
  * Creates or reuses a .js-error-message element at the top of the form.
@@ -112,6 +117,8 @@ function validateModelForm() {
     return showFormError(form, "Please enter a valid author email.");
   if (!validUrl(link))
     return showFormError(form, "File link must be a valid URL starting with http:// or https://");
+  if (!valid3DFileUrl(link))
+    return showFormError(form, "File link must point to a 3D model file (.glb, .gltf, .stl, .obj, .fbx, .step, .dwg, .3ds, .dae, .ply, .3mf).");
   return true;
 }
 
@@ -132,6 +139,8 @@ function validateModelEditForm() {
     return showFormError(form, "Please enter a valid author email.");
   if (!validUrl(link))
     return showFormError(form, "File link must be a valid URL starting with http:// or https://");
+  if (!valid3DFileUrl(link))
+    return showFormError(form, "File link must point to a 3D model file (.glb, .gltf, .stl, .obj, .fbx, .step, .dwg, .3ds, .dae, .ply, .3mf).");
   return true;
 }
 

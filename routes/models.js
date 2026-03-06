@@ -103,6 +103,16 @@ router.post("/new", requireLogin, async (req, res) => {
     });
   }
 
+  // File extension validation – must point to a 3D model file
+  const allowedExts = /\.(glb|gltf|stl|obj|fbx|step|stp|dwg|3ds|dae|ply|3mf|iges|igs)(\?.*)?$/i;
+  if (!allowedExts.test(file_link)) {
+    return res.render("models/new", {
+      title: "Add Model",
+      error: "File link must point to a 3D model file (.glb, .gltf, .stl, .obj, .fbx, .step, .dwg, .3ds, .dae, .ply, .3mf).",
+      old: req.body,
+    });
+  }
+
   // Visibility whitelist
   const validVisibility = ["Public", "Private"];
   const vis = validVisibility.includes(visibility_status) ? visibility_status : "Public";
@@ -207,6 +217,16 @@ router.post("/:id/edit", requireLogin, async (req, res) => {
         title: "Edit Model",
         model: { ...existing, ...req.body },
         error: "File link must be a valid URL starting with http:// or https://",
+      });
+    }
+
+    // File extension validation – must point to a 3D model file
+    const allowedExts = /\.(glb|gltf|stl|obj|fbx|step|stp|dwg|3ds|dae|ply|3mf|iges|igs)(\?.*)?$/i;
+    if (!allowedExts.test(file_link)) {
+      return res.render("models/edit", {
+        title: "Edit Model",
+        model: { ...existing, ...req.body },
+        error: "File link must point to a 3D model file (.glb, .gltf, .stl, .obj, .fbx, .step, .dwg, .3ds, .dae, .ply, .3mf).",
       });
     }
 
