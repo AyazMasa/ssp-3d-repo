@@ -4,10 +4,11 @@
   <h1>Contact Us</h1>
   <p class="mt-1 mb-3" style="color:var(--text-secondary);">Have a question or feedback? Send us a message using the form below.</p>
 
-  <div id="contact-success" class="flash-message" style="display:none;">Your message has been sent successfully! We'll get back to you soon.</div>
-  <div id="contact-error" class="error-message" style="display:none;">Something went wrong. Please try again later.</div>
+  <% if (sent) { %>
+    <div class="flash-message">Your message has been sent successfully! We'll get back to you soon.</div>
+  <% } %>
 
-  <form id="contactForm" class="mt-1">
+  <form action="https://formspree.io/f/xlgwqggz" method="POST" id="contactForm" onsubmit="return validateContactForm();" class="mt-1">
     <div class="form-group">
       <label>Your Name <span class="required">*</span></label>
       <input type="text" name="name" class="form-control" id="contact_name" placeholder="John Doe" required maxlength="100" />
@@ -25,53 +26,11 @@
       <textarea name="message" class="form-control" id="contact_message" placeholder="Write your message here..." required maxlength="2000"></textarea>
     </div>
     <input type="hidden" name="_subject" value="New SSP Contact Form Submission" />
+    <input type="hidden" name="_next" value="<%= siteUrl %>/contact?sent=1" />
     <div class="form-actions">
-      <button type="submit" class="btn btn-primary" id="contact-btn">Send Message</button>
+      <button type="submit" class="btn btn-primary">Send Message</button>
     </div>
   </form>
 </div>
-
-<script>
-document.getElementById('contactForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  var btn = document.getElementById('contact-btn');
-  var successEl = document.getElementById('contact-success');
-  var errorEl = document.getElementById('contact-error');
-  successEl.style.display = 'none';
-  errorEl.style.display = 'none';
-  btn.disabled = true;
-  btn.textContent = 'Sending…';
-
-  try {
-    var data = {
-      name: document.getElementById('contact_name').value,
-      email: document.getElementById('contact_email').value,
-      subject: document.getElementById('contact_subject').value,
-      message: document.getElementById('contact_message').value,
-      _subject: 'New SSP Contact Form Submission'
-    };
-    var resp = await fetch('https://formspree.io/f/xlgwqggz', {
-      method: 'POST',
-      body: JSON.stringify(data),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    });
-    if (resp.ok) {
-      successEl.style.display = 'block';
-      this.reset();
-    } else {
-      var result = await resp.json().catch(function() { return {}; });
-      errorEl.textContent = result.error || 'Something went wrong. Please try again later.';
-      errorEl.style.display = 'block';
-    }
-  } catch (err) {
-    errorEl.style.display = 'block';
-  }
-  btn.disabled = false;
-  btn.textContent = 'Send Message';
-});
-</script>
 
 <%- include('footer') %>
